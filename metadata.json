@@ -1,0 +1,9 @@
+
+{
+  "name": "交互直播 2.0",
+  "description": "A professional web-based live stream management system with filtering, categorization, and stream monitoring features.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
