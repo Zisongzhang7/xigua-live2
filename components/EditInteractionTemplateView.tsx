@@ -23,6 +23,12 @@ import { ResourceSelectionModal } from './LiveSetupComponents';
 import { QuizCard, QuizStatus } from './QuizCard';
 import { SliceListCard, SliceListStatus } from './SliceListCard';
 import { AISwitchCard, AISwitchStatus } from './AISwitchCard';
+import { VoteCard, VoteStatus } from './VoteCard';
+import { DebateCard, DebateStatus } from './DebateCard';
+import { EliminationCard, EliminationStatus } from './EliminationCard';
+import { LinkCard, LinkStatus } from './LinkCard';
+import { ModelCard, ModelStatus } from './ModelCard';
+import { GandiCard, GandiStatus } from './GandiCard';
 
 interface InteractionState {
   status: QuizStatus;
@@ -248,32 +254,13 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                 <h2 className="text-base font-black text-gray-900 tracking-tight uppercase">交互配置模块</h2>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                  <button
-                    onClick={() => setActiveTab('LIST')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'LIST' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    <List size={14} /> 列表模式
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('TIMELINE')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'TIMELINE' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    <Clock size={14} /> 时间轴模式
-                  </button>
-                </div>
-
-                <div className="w-px h-6 bg-gray-200 mx-1"></div>
-
-                <button
-                  onClick={() => setSelectionModalOpen(true)}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-100"
-                >
-                  <Plus size={16} />
-                  新增交互
-                </button>
-              </div>
+              <button
+                onClick={() => setSelectionModalOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-100"
+              >
+                <Plus size={16} />
+                新增交互
+              </button>
             </div>
 
             <div className="flex-1 p-8 bg-white overflow-y-auto custom-scrollbar">
@@ -322,6 +309,115 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                 />
                               );
                             }
+                            if (item.type === InteractionCategory.VOTE) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <VoteCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  mockOptions={item.config?.options}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as VoteStatus}
+                                  votes={state.votes}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
+                            if (item.type === InteractionCategory.DEBATE) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <DebateCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  proView={item.config?.pro?.view}
+                                  conView={item.config?.con?.view}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as DebateStatus}
+                                  votes={state.votes}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
+                            if (item.type === InteractionCategory.ONE_STAND) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <EliminationCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  questions={item.config?.questions}
+                                  mode={item.config?.mode}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as EliminationStatus}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
+                            if (item.type === InteractionCategory.GANDI_EMBED) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <GandiCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  projectId={item.config?.projectId}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as GandiStatus}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
+                            if (item.type === InteractionCategory.LINK) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <LinkCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  url={item.config?.url}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as LinkStatus}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
+                            if (item.type === InteractionCategory.MODEL) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <ModelCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  coverUrl={item.config?.coverUrl}
+                                  views={item.config?.views}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as ModelStatus}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+
                             if (item.type === InteractionCategory.COURSE_SLICE) {
                               const state = getInteractionState(item.id);
                               return (

@@ -140,6 +140,7 @@ const App: React.FC = () => {
             onAddResource={() => setIsCreatingResource(true)}
             onEditResource={handleEditResource}
             onDeleteResource={handleDeleteResource}
+            allLabels={COMMON_LABELS}
           />
         );
       case 'INTERACTION_TEMPLATES':
@@ -149,6 +150,7 @@ const App: React.FC = () => {
             onAddTemplate={handleCreateTemplate}
             onEditTemplate={handleEditTemplate}
             onDeleteTemplate={handleDeleteTemplate}
+            allLabels={COMMON_LABELS}
           />
         );
       default:
