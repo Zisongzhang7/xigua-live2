@@ -17,19 +17,11 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
-import { InteractionTemplate, InteractiveResource, InteractionCategory } from '../types';
+import { InteractionTemplate, InteractiveResource, InteractionCategory, InteractionItem } from '../types';
 import { COMMON_LABELS } from '../App';
-import { ResourceSelectionModal } from './LiveSetupView';
+import { ResourceSelectionModal } from './LiveSetupComponents';
 import { QuizCard, QuizStatus } from './QuizCard';
-
-interface InteractionItem {
-  id: string;
-  title: string;
-  type: InteractionCategory;
-  time: string;
-  label?: string;
-  resourceId?: string;
-}
+import { SliceListCard, SliceListStatus } from './SliceListCard';
 
 interface InteractionState {
   status: QuizStatus;
@@ -63,13 +55,19 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
 
   // 初始化交互项 (Mock)
   useEffect(() => {
-    if (initialTemplate) {
+    if (initialTemplate && initialTemplate.items) {
+      setInteractions(initialTemplate.items);
+    } else if (initialTemplate) {
+      // Fallback for mock if items undefined
       const mockInteractions: InteractionItem[] = Array.from({ length: initialTemplate.interactionCount }).map((_, i) => ({
         id: `tpl-item-${i}`,
         title: `交互项 ${i + 1}`,
         type: InteractionCategory.QUIZ,
         time: `00:${(i + 1) * 5}`,
-        label: '默认导入环节'
+        label: '默认导入环节',
+        track: 'MAIN',
+        triggerMode: 'MANUAL',
+        duration: 300
       }));
       setInteractions(mockInteractions);
     }
@@ -82,13 +80,26 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
   };
 
   const handleAddResource = (res: InteractiveResource) => {
+    const mode = (res as any)._mode;
+    const originalSlices = res.config?.slices || [];
+    const slices = mode === 'homework_only'
+      ? originalSlices.filter((s: any) => s.title.includes('作业') || s.type === 'TEXT')
+      : originalSlices;
+
     const newItem: InteractionItem = {
       id: `tpl-item-${Date.now()}`,
       title: res.name,
       type: res.category,
       time: '00:00',
-      label: '新添加交互',
-      resourceId: res.id
+      label: '切片课资源',
+      resourceId: res.id,
+      track: 'MAIN',
+      triggerMode: 'MANUAL',
+      duration: 0,
+      config: {
+        ...res.config,
+        slices: slices
+      }
     };
     setInteractions(prev => [...prev, newItem]);
     setSelectionModalOpen(false);
@@ -289,6 +300,25 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                   onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                   onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
                                   onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+                            if (item.type === InteractionCategory.COURSE_SLICE) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <SliceListCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  className="六年级(2)班"
+                                  lessonName={item.title}
+                                  slices={item.config?.slices}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status as SliceListStatus}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  isReadOnly={true}
                                 />
                               );
                             }

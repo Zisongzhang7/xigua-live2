@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  ChevronLeft, 
-  Save, 
-  Plus, 
-  Trash2, 
-  Image as ImageIcon, 
+import {
+  ChevronLeft,
+  Save,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
   Settings2,
   ListOrdered,
   Mic,
@@ -21,7 +21,8 @@ import {
   FileJson,
   Check,
   Clock,
-  PlusCircle
+  PlusCircle,
+  GraduationCap
 } from 'lucide-react';
 import { InteractionCategory, InteractiveResource } from '../types';
 
@@ -38,62 +39,66 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
   const [availableLabels, setAvailableLabels] = useState(['数学', '英语', '语文', '有奖', '互动', '基础', '竞赛', 'AI', '3D']);
   const [newLabelInput, setNewLabelInput] = useState('');
   const [showLabelInput, setShowLabelInput] = useState(false);
-  
+
   const isEditMode = !!initialResource;
 
   // 完整匹配脑图结构的表单状态
   const [formData, setFormData] = useState<any>({
-    [InteractionCategory.QUIZ]: { 
-      topic: '', 
-      isSingle: true, 
-      options: [{ id: '1', name: '', desc: '', img: null }], 
-      correctAnswer: '', 
-      analysis: '', 
-      rewardScore: '10', 
-      deductScore: '5' 
+    [InteractionCategory.QUIZ]: {
+      topic: '',
+      isSingle: true,
+      options: [{ id: '1', name: '', desc: '', img: null }],
+      correctAnswer: '',
+      analysis: '',
+      rewardScore: '10',
+      deductScore: '5'
     },
-    [InteractionCategory.DEBATE]: { 
-      title: '', 
-      pro: { view: '', img: null }, 
-      con: { view: '', img: null } 
+    [InteractionCategory.DEBATE]: {
+      title: '',
+      pro: { view: '', img: null },
+      con: { view: '', img: null }
     },
-    [InteractionCategory.DISCUSSION]: { 
-      topic: '', 
-      desc: '', 
-      totalTime: '30', 
-      perPersonTime: '60', 
-      reward: '5', 
-      bgImg: null, 
-      hostVoice: null 
+    [InteractionCategory.DISCUSSION]: {
+      topic: '',
+      desc: '',
+      totalTime: '30',
+      perPersonTime: '60',
+      reward: '5',
+      bgImg: null,
+      hostVoice: null
     },
-    [InteractionCategory.VOTE]: { 
-      name: '', 
-      desc: '', 
-      isSingle: true, 
-      options: [{ id: '1', name: '', desc: '', img: null }], 
-      correctOption: '', 
-      rewardScore: '5', 
-      wrongReward: '0' 
+    [InteractionCategory.VOTE]: {
+      name: '',
+      desc: '',
+      isSingle: true,
+      options: [{ id: '1', name: '', desc: '', img: null }],
+      correctOption: '',
+      rewardScore: '5',
+      wrongReward: '0'
     },
     [InteractionCategory.MODEL]: { name: '', url: '', jsonConfig: null },
     [InteractionCategory.GANDI_EMBED]: { name: '', projectId: '' },
     [InteractionCategory.LINK]: { name: '', url: '' },
-    [InteractionCategory.ONE_STAND]: { 
-      topic: '', 
-      mode: '错误淘汰', 
+    [InteractionCategory.ONE_STAND]: {
+      topic: '',
+      mode: '错误淘汰',
       maxErrors: '1',
       questions: [
-        { 
-          id: 'q1', 
-          topic: '', 
-          analysis: '', 
-          isSingle: true, 
-          options: [{ id: 'o1', name: '', desc: '', img: null }], 
-          correct: '', 
-          score: '10', 
-          deduct: '5' 
+        {
+          id: 'q1',
+          topic: '',
+          analysis: '',
+          isSingle: true,
+          options: [{ id: 'o1', name: '', desc: '', img: null }],
+          correct: '',
+          score: '10',
+          deduct: '5'
         }
-      ] 
+      ]
+    },
+    [InteractionCategory.COURSE_SLICE]: {
+      lessonName: '',
+      version: ''
     }
   });
 
@@ -128,9 +133,11 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
       case InteractionCategory.LINK:
         return !!(data.name.trim() && data.url.trim());
       case InteractionCategory.ONE_STAND:
-        return !!(data.topic.trim() && data.questions.length > 0 && data.questions.every((q: any) => 
+        return !!(data.topic.trim() && data.questions.length > 0 && data.questions.every((q: any) =>
           q.topic.trim() && q.options.length > 0 && q.options.every((opt: any) => opt.name.trim()) && q.correct
         ));
+      case InteractionCategory.COURSE_SLICE:
+        return !!(data.lessonName.trim() && data.version.trim());
       default:
         return false;
     }
@@ -155,6 +162,22 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
   const handleSave = () => {
     if (!isFormValid) return;
 
+    let config = formData[selectedCategory];
+
+    // Mock Slices Data Injection
+    if (selectedCategory === InteractionCategory.COURSE_SLICE) {
+      config = {
+        ...config,
+        slices: [
+          { id: 's1', type: 'VIDEO', title: '知识点讲解：认识数字', duration: '2:00' },
+          { id: 's2', type: 'QUIZ', title: '随堂练习：连线游戏', duration: '1:00' },
+          { id: 's3', type: 'VIDEO', title: '视频：生活中的数字', duration: '3:00' },
+          { id: 's4', type: 'OTHER', title: '互动游戏：数字大冒险', duration: '2:30' },
+          { id: 's5', type: 'TEXT', title: '课后作业：数字描红', duration: '0:00' }
+        ]
+      };
+    }
+
     const resource: InteractiveResource = {
       id: initialResource?.id || `IR-${Math.floor(1000 + Math.random() * 9000)}`,
       name: resourceName,
@@ -162,7 +185,8 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
       templateName: initialResource?.templateName || '默认模板',
       creator: initialResource?.creator || 'Administrator',
       modifiedAt: new Date().toLocaleString(),
-      labels: selectedLabels
+      labels: selectedLabels,
+      config: config
     };
 
     onSave(resource);
@@ -186,8 +210,8 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
               <div className="grid grid-cols-1 gap-6">
                 <InputField label="题目名称" value={data.topic} onChange={(e) => updateField(InteractionCategory.QUIZ, 'topic', e.target.value)} />
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                   <span className="text-sm font-bold text-gray-700">是否单选</span>
-                   <Toggle active={data.isSingle} onClick={() => updateField(InteractionCategory.QUIZ, 'isSingle', !data.isSingle)} />
+                  <span className="text-sm font-bold text-gray-700">是否单选</span>
+                  <Toggle active={data.isSingle} onClick={() => updateField(InteractionCategory.QUIZ, 'isSingle', !data.isSingle)} />
                 </div>
               </div>
             </FormSection>
@@ -215,11 +239,11 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                       <ImageUpload label="图片" size="sm" />
                     </div>
                     <button onClick={() => {
-                      if(data.options.length > 1) {
+                      if (data.options.length > 1) {
                         const next = data.options.filter((o: any) => o.id !== opt.id);
                         updateField(InteractionCategory.QUIZ, 'options', next);
                       }
-                    }} className="p-2 text-gray-300 hover:text-red-500 self-start md:self-center"><Trash2 size={18}/></button>
+                    }} className="p-2 text-gray-300 hover:text-red-500 self-start md:self-center"><Trash2 size={18} /></button>
                   </div>
                 ))}
                 <button onClick={() => updateField(InteractionCategory.QUIZ, 'options', [...data.options, { id: Date.now().toString(), name: '', desc: '', img: null }])} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2 font-black text-xs">
@@ -232,7 +256,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">正确答案</label>
-                  <select 
+                  <select
                     className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm"
                     value={data.correctAnswer}
                     onChange={(e) => updateField(InteractionCategory.QUIZ, 'correctAnswer', e.target.value)}
@@ -261,7 +285,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
               <FormSection title="正方配置" icon={<Check className="text-blue-500" size={18} />}>
                 <div className="space-y-4">
                   <TextAreaField label="正方观点" value={data.pro.view} onChange={(e) => {
-                    const next = {...data.pro, view: e.target.value};
+                    const next = { ...data.pro, view: e.target.value };
                     updateField(InteractionCategory.DEBATE, 'pro', next);
                   }} />
                   <ImageUpload label="正方图片" />
@@ -270,7 +294,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
               <FormSection title="反方配置" icon={<X className="text-red-500" size={18} />}>
                 <div className="space-y-4">
                   <TextAreaField label="反方观点" value={data.con.view} onChange={(e) => {
-                    const next = {...data.con, view: e.target.value};
+                    const next = { ...data.con, view: e.target.value };
                     updateField(InteractionCategory.DEBATE, 'con', next);
                   }} />
                   <ImageUpload label="反方图片" />
@@ -311,29 +335,29 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                 <InputField label="投票名称" value={data.name} onChange={(e) => updateField(InteractionCategory.VOTE, 'name', e.target.value)} />
                 <InputField label="投票描述" value={data.desc} onChange={(e) => updateField(InteractionCategory.VOTE, 'desc', e.target.value)} />
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 col-span-2">
-                   <span className="text-sm font-bold text-gray-700">是否单选</span>
-                   <Toggle active={data.isSingle} onClick={() => updateField(InteractionCategory.VOTE, 'isSingle', !data.isSingle)} />
+                  <span className="text-sm font-bold text-gray-700">是否单选</span>
+                  <Toggle active={data.isSingle} onClick={() => updateField(InteractionCategory.VOTE, 'isSingle', !data.isSingle)} />
                 </div>
               </div>
             </FormSection>
             <FormSection title="选项列表" icon={<Plus size={18} />}>
-               <div className="space-y-4">
-                 {data.options.map((opt: any, idx: number) => (
-                   <div key={opt.id} className="p-4 bg-white border border-gray-200 rounded-2xl flex gap-4 items-center">
-                     <span className="text-xs font-black text-gray-400">#{idx+1}</span>
-                     <InputField label="" placeholder="选项名称" value={opt.name} onChange={(e) => {
-                       const next = [...data.options];
-                       next[idx].name = e.target.value;
-                       updateField(InteractionCategory.VOTE, 'options', next);
-                     }} />
-                     <button onClick={() => {
-                        const next = data.options.filter((o: any) => o.id !== opt.id);
-                        updateField(InteractionCategory.VOTE, 'options', next);
-                     }} className="text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
-                   </div>
-                 ))}
-                 <button onClick={() => updateField(InteractionCategory.VOTE, 'options', [...data.options, { id: Date.now().toString(), name: '' }])} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-blue-500 transition-all font-bold text-xs">+ 添加投票项</button>
-               </div>
+              <div className="space-y-4">
+                {data.options.map((opt: any, idx: number) => (
+                  <div key={opt.id} className="p-4 bg-white border border-gray-200 rounded-2xl flex gap-4 items-center">
+                    <span className="text-xs font-black text-gray-400">#{idx + 1}</span>
+                    <InputField label="" placeholder="选项名称" value={opt.name} onChange={(e) => {
+                      const next = [...data.options];
+                      next[idx].name = e.target.value;
+                      updateField(InteractionCategory.VOTE, 'options', next);
+                    }} />
+                    <button onClick={() => {
+                      const next = data.options.filter((o: any) => o.id !== opt.id);
+                      updateField(InteractionCategory.VOTE, 'options', next);
+                    }} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                <button onClick={() => updateField(InteractionCategory.VOTE, 'options', [...data.options, { id: Date.now().toString(), name: '' }])} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-blue-500 transition-all font-bold text-xs">+ 添加投票项</button>
+              </div>
             </FormSection>
             <FormSection title="得分配置" icon={<Settings2 size={18} />}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -390,7 +414,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                 <InputField label="活动主题" value={data.topic} onChange={(e) => updateField(InteractionCategory.ONE_STAND, 'topic', e.target.value)} />
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">淘汰方式</label>
-                  <select 
+                  <select
                     className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 outline-none"
                     value={data.mode}
                     onChange={(e) => updateField(InteractionCategory.ONE_STAND, 'mode', e.target.value)}
@@ -413,18 +437,18 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                       <div className="flex items-center gap-3">
                         <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black tracking-widest uppercase">题目 {qIdx + 1}</span>
                         <div className="flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-lg">
-                           <span className="text-[10px] font-black text-gray-400">单选</span>
-                           <Toggle active={q.isSingle} onClick={() => {
-                             const next = [...data.questions];
-                             next[qIdx].isSingle = !next[qIdx].isSingle;
-                             updateField(InteractionCategory.ONE_STAND, 'questions', next);
-                           }} />
+                          <span className="text-[10px] font-black text-gray-400">单选</span>
+                          <Toggle active={q.isSingle} onClick={() => {
+                            const next = [...data.questions];
+                            next[qIdx].isSingle = !next[qIdx].isSingle;
+                            updateField(InteractionCategory.ONE_STAND, 'questions', next);
+                          }} />
                         </div>
                       </div>
                       <button onClick={() => {
                         const next = data.questions.filter((item: any) => item.id !== q.id);
                         updateField(InteractionCategory.ONE_STAND, 'questions', next);
-                      }} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 size={18}/></button>
+                      }} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -448,8 +472,8 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                           <div key={opt.id} className="p-4 bg-white border border-gray-200 rounded-2xl flex items-center gap-4">
                             <span className="text-xs font-black text-gray-400 shrink-0">{optIdx + 1}#</span>
                             <div className="flex-1">
-                              <input 
-                                className="w-full bg-transparent text-sm font-bold text-gray-900 outline-none" 
+                              <input
+                                className="w-full bg-transparent text-sm font-bold text-gray-900 outline-none"
                                 placeholder="选项内容"
                                 value={opt.name}
                                 onChange={(e) => {
@@ -463,10 +487,10 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                               const next = [...data.questions];
                               next[qIdx].options = next[qIdx].options.filter((o: any) => o.id !== opt.id);
                               updateField(InteractionCategory.ONE_STAND, 'questions', next);
-                            }} className="text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
+                            }} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
                           </div>
                         ))}
-                        <button 
+                        <button
                           onClick={() => {
                             const next = [...data.questions];
                             next[qIdx].options.push({ id: Date.now().toString(), name: '', desc: '', img: null });
@@ -482,7 +506,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">正确答案</label>
-                        <select 
+                        <select
                           className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 outline-none"
                           value={q.correct}
                           onChange={(e) => {
@@ -510,12 +534,59 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                     </div>
                   </div>
                 ))}
-                <button 
+                <button
                   onClick={() => updateField(InteractionCategory.ONE_STAND, 'questions', [...data.questions, { id: Date.now().toString(), topic: '', analysis: '', correct: '', score: '10', deduct: '5', options: [{ id: Date.now().toString(), name: '', desc: '', img: null }] }])}
                   className="w-full py-5 bg-white border-2 border-dashed border-gray-200 rounded-3xl text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-all font-black text-xs flex items-center justify-center gap-2"
                 >
                   <Plus size={18} /> 添加新题目
                 </button>
+              </div>
+            </FormSection>
+          </div>
+        );
+
+      case InteractionCategory.COURSE_SLICE:
+        return (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <FormSection title="课节配置" icon={<GraduationCap size={18} />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">选择课节</label>
+                  <select
+                    className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm"
+                    value={data.lessonName}
+                    onChange={(e) => updateField(InteractionCategory.COURSE_SLICE, 'lessonName', e.target.value)}
+                  >
+                    <option value="">请选择课节</option>
+                    {['第一课：认识数字', '第二课：拼音基础', '第三课：简单加法', '第四课：古诗赏析'].map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">课节版本</label>
+                  <select
+                    className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm"
+                    value={data.version}
+                    onChange={(e) => updateField(InteractionCategory.COURSE_SLICE, 'version', e.target.value)}
+                  >
+                    <option value="">请选择版本</option>
+                    {['V1.0.0 (最新版)', 'V0.9.5 (稳定版)', 'V0.9.0 (旧版)'].map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-1 md:col-span-2 p-6 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
+                  <div className="p-2 bg-white rounded-lg text-blue-600 shadow-sm">
+                    <ListOrdered size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-blue-900 mb-1">自动获取说明</h4>
+                    <p className="text-xs text-blue-600/80 leading-relaxed font-medium">配置完成后，系统将自动拉取该课节版本下的所有切片资源（包括互动题目、作业等），无需手动逐个添加。</p>
+                  </div>
+                </div>
               </div>
             </FormSection>
           </div>
@@ -531,7 +602,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
       {/* Navbar */}
       <nav className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0 z-50 sticky top-0">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={onBack}
             className="p-2 hover:bg-gray-50 rounded-full text-gray-400 transition-all active:scale-90"
           >
@@ -549,13 +620,13 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={onBack}
             className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:bg-gray-50 rounded-xl transition-all"
           >
             取消
           </button>
-          <button 
+          <button
             onClick={handleSave}
             disabled={!isFormValid}
             className={`px-8 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 shadow-xl transition-all active:scale-95 ${isFormValid ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100' : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}
@@ -579,8 +650,8 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                   {Object.values(InteractionCategory).map(cat => (
-                    <button 
-                      key={cat} 
+                    <button
+                      key={cat}
                       onClick={() => setSelectedCategory(cat)}
                       className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-3 ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
                     >
@@ -601,27 +672,27 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                 <h2 className="text-base font-black text-gray-900 tracking-tight uppercase">基础信息模块</h2>
               </div>
               <div className="space-y-8">
-                <InputField 
-                  label="内部展示名称" 
-                  placeholder="请输入资源在后台显示的名称..." 
-                  value={resourceName} 
-                  onChange={(e) => setResourceName(e.target.value)} 
+                <InputField
+                  label="内部展示名称"
+                  placeholder="请输入资源在后台显示的名称..."
+                  value={resourceName}
+                  onChange={(e) => setResourceName(e.target.value)}
                 />
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">标签分类 (点击选择或新增)</label>
-                    <button 
+                    <button
                       onClick={() => setShowLabelInput(!showLabelInput)}
                       className="text-[10px] font-black text-blue-600 flex items-center gap-1 hover:underline"
                     >
                       <PlusCircle size={12} /> 自定义标签
                     </button>
                   </div>
-                  
+
                   {showLabelInput && (
                     <div className="flex gap-2 animate-in slide-in-from-top-2 duration-200 mb-4">
-                      <input 
+                      <input
                         autoFocus
                         type="text"
                         placeholder="输入新标签..."
@@ -630,7 +701,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                         onKeyDown={(e) => e.key === 'Enter' && handleAddNewLabel()}
                         className="flex-1 bg-gray-50 border border-blue-200 rounded-xl px-4 py-2 text-xs font-bold text-gray-900 outline-none"
                       />
-                      <button 
+                      <button
                         onClick={handleAddNewLabel}
                         className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black"
                       >
@@ -641,8 +712,8 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
 
                   <div className="flex flex-wrap gap-2">
                     {availableLabels.map(label => (
-                      <button 
-                        key={label} 
+                      <button
+                        key={label}
                         onClick={() => toggleLabel(label)}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedLabels.includes(label) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-blue-400'}`}
                       >
@@ -677,6 +748,7 @@ const getCategoryIcon = (cat: InteractionCategory, size: number = 32) => {
     case InteractionCategory.LINK: return <Link size={size} />;
     case InteractionCategory.GANDI_EMBED: return <Layout size={size} />;
     case InteractionCategory.ONE_STAND: return <Trophy size={size} />;
+    case InteractionCategory.COURSE_SLICE: return <GraduationCap size={size} />;
     default: return <Settings2 size={size} />;
   }
 };
@@ -684,8 +756,8 @@ const getCategoryIcon = (cat: InteractionCategory, size: number = 32) => {
 const FormSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
   <div className="space-y-4">
     <div className="flex items-center gap-3 border-l-4 border-blue-600 pl-4">
-       <span className="text-blue-600">{icon}</span>
-       <h4 className="text-base font-black text-gray-900 tracking-tight uppercase">{title}</h4>
+      <span className="text-blue-600">{icon}</span>
+      <h4 className="text-base font-black text-gray-900 tracking-tight uppercase">{title}</h4>
     </div>
     <div className="bg-transparent p-1">
       {children}
@@ -693,19 +765,19 @@ const FormSection: React.FC<{ title: string; icon: React.ReactNode; children: Re
   </div>
 );
 
-const InputField: React.FC<{ 
-  label: string; 
-  placeholder?: string; 
-  value?: string; 
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; 
-  type?: string; 
-  icon?: React.ReactNode 
+const InputField: React.FC<{
+  label: string;
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  icon?: React.ReactNode
 }> = ({ label, placeholder, value, onChange, type = "text", icon }) => (
   <div className="space-y-2 flex-1">
     {label && <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">{label}</label>}
     <div className="relative">
       {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">{icon}</div>}
-      <input 
+      <input
         type={type}
         value={value}
         onChange={onChange}
@@ -716,37 +788,37 @@ const InputField: React.FC<{
   </div>
 );
 
-const TextAreaField: React.FC<{ 
-    label: string; 
-    placeholder?: string; 
-    value?: string; 
-    onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; 
-  }> = ({ label, placeholder, value, onChange }) => (
-    <div className="space-y-2 flex-1">
-      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">{label}</label>
-      <textarea 
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        rows={4}
-        className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm resize-none"
-      />
-    </div>
+const TextAreaField: React.FC<{
+  label: string;
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+}> = ({ label, placeholder, value, onChange }) => (
+  <div className="space-y-2 flex-1">
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">{label}</label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm resize-none"
+    />
+  </div>
 );
 
 const FileUploadField: React.FC<{ label: string; icon: React.ReactNode; sub: string }> = ({ label, icon, sub }) => (
-    <div className="space-y-2 flex-1">
-      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">{label}</label>
-      <div className="h-40 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer group bg-white shadow-sm">
-         <div className="text-gray-300 group-hover:text-blue-500 transition-colors">{icon}</div>
-         <span className="text-sm text-gray-500 font-bold">点击上传素材</span>
-         <span className="text-[9px] text-gray-300 font-medium uppercase tracking-widest">{sub}</span>
-      </div>
+  <div className="space-y-2 flex-1">
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">{label}</label>
+    <div className="h-40 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer group bg-white shadow-sm">
+      <div className="text-gray-300 group-hover:text-blue-500 transition-colors">{icon}</div>
+      <span className="text-sm text-gray-500 font-bold">点击上传素材</span>
+      <span className="text-[9px] text-gray-300 font-medium uppercase tracking-widest">{sub}</span>
     </div>
+  </div>
 );
 
 const Toggle: React.FC<{ active: boolean; onClick: () => void }> = ({ active, onClick }) => (
-  <button 
+  <button
     onClick={onClick}
     className={`w-14 h-7 rounded-full p-1 transition-all duration-300 ${active ? 'bg-blue-600' : 'bg-gray-300'}`}
   >
@@ -758,8 +830,8 @@ const ImageUpload: React.FC<{ label: string; color?: string; size?: 'sm' | 'md' 
   <div className="space-y-2">
     <label className={`${size === 'sm' ? 'text-[8px]' : 'text-[10px]'} font-black text-gray-400 uppercase tracking-widest pl-1`}>{label}</label>
     <div className={`${size === 'sm' ? 'h-24' : 'h-32'} border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-${color}-50 hover:border-${color}-300 transition-all cursor-pointer group bg-white shadow-sm`}>
-       <ImageIcon className="text-gray-200 group-hover:text-blue-500" size={size === 'sm' ? 18 : 24} />
-       <span className={`${size === 'sm' ? 'text-[10px]' : 'text-xs'} text-gray-400 font-bold`}>上传</span>
+      <ImageIcon className="text-gray-200 group-hover:text-blue-500" size={size === 'sm' ? 18 : 24} />
+      <span className={`${size === 'sm' ? 'text-[10px]' : 'text-xs'} text-gray-400 font-bold`}>上传</span>
     </div>
   </div>
 );

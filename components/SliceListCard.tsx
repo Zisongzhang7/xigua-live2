@@ -62,6 +62,8 @@ export const SliceListCard: React.FC<SliceListCardProps> = ({
     const [activeSliceId, setActiveSliceId] = useState<string | null>(null);
     // Mock completion stats: sliceId -> count
     const [completionStats, setCompletionStats] = useState<Record<string, number>>({});
+    // Mock homework submission mode: sliceId -> 'STASH' | 'SUBMIT'
+    const [homeworkModes, setHomeworkModes] = useState<Record<string, 'STASH' | 'SUBMIT'>>({});
 
     // Auto-expand on start
     const handleStartClass = () => {
@@ -92,6 +94,10 @@ export const SliceListCard: React.FC<SliceListCardProps> = ({
             // Reset stats for new slice (mock)
             setCompletionStats(prev => ({ ...prev, [sliceId]: 0 }));
         }
+    };
+
+    const handleHomeworkModeChange = (sliceId: string, mode: 'STASH' | 'SUBMIT') => {
+        setHomeworkModes(prev => ({ ...prev, [sliceId]: mode }));
     };
 
     // Simulate real-time completion updates when a slice is active
@@ -184,102 +190,92 @@ export const SliceListCard: React.FC<SliceListCardProps> = ({
             {/* Body */}
             <div className={`transition-all duration-500 ease-in-out overflow-hidden bg-white ${isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="p-5 space-y-4">
-                    {status === 'ACTIVE' ? (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between px-1">
-                                <span className="text-xs font-black text-gray-400 uppercase tracking-wider">切片列表 ({slices.length})</span>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-wider">切片列表 ({slices.length})</span>
+                            {status === 'ACTIVE' && (
                                 <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                                     {activeSliceId ? '正在推送内容' : '等待推送'}
                                 </span>
-                            </div>
+                            )}
+                        </div>
 
-                            <div className="flex flex-col gap-2">
-                                {slices.length > 0 ? slices.map(slice => {
-                                    const isActive = activeSliceId === slice.id;
-                                    return (
-                                        <div
-                                            key={slice.id}
-                                            className={`flex flex-col gap-2 p-3 rounded-xl border transition-all ${isActive
-                                                ? 'bg-blue-50 border-blue-200 shadow-sm'
-                                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {getSliceIcon(slice.type)}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-sm font-bold ${isActive ? 'text-blue-900' : 'text-gray-700'}`}>
-                                                            {slice.title}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-400 font-medium">
-                                                            {getSliceTypeLabel(slice.type)}
-                                                        </span>
-                                                    </div>
+                        <div className="flex flex-col gap-2">
+                            {slices.length > 0 ? slices.map(slice => {
+                                const isActive = activeSliceId === slice.id;
+                                const isHomework = slice.title.includes('作业') || slice.type === 'TEXT'; // Mock check for homework
+
+                                return (
+                                    <div
+                                        key={slice.id}
+                                        className={`flex flex-col gap-2 p-3 rounded-xl border transition-all ${isActive
+                                            ? 'bg-blue-50 border-blue-200 shadow-sm'
+                                            : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {/* Main Row: Icon, Title, Action Button */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {getSliceIcon(slice.type)}
                                                 </div>
-
-                                                <button
-                                                    onClick={() => toggleSlice(slice.id)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive
-                                                        ? 'bg-red-50 text-red-500 hover:bg-red-100 border border-red-100'
-                                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100'
-                                                        }`}
-                                                >
-                                                    {isActive ? '结束' : '开启'}
-                                                </button>
-                                            </div>
-
-                                            {/* Completion Stats Area */}
-                                            {isActive && (
-                                                <div className="mt-1 pt-2 border-t border-blue-100/50 flex items-center justify-between animate-in slide-in-from-top-1 duration-200">
-                                                    <div className="flex items-center gap-1.5 text-blue-600">
-                                                        <Users size={12} />
-                                                        <span className="text-[10px] font-bold">已完成人数</span>
-                                                    </div>
-                                                    <span className="text-sm font-black text-blue-700 font-mono">
-                                                        {completionStats[slice.id] || 0} <span className="text-[10px] text-blue-400 font-normal">人</span>
+                                                <div className="flex flex-col">
+                                                    <span className={`text-sm font-bold ${isActive ? 'text-blue-900' : 'text-gray-700'}`}>
+                                                        {slice.title}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 font-medium">
+                                                        {getSliceTypeLabel(slice.type)}
                                                     </span>
                                                 </div>
-                                            )}
+                                            </div>
+
+                                            <button
+                                                onClick={() => toggleSlice(slice.id)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive
+                                                    ? 'bg-red-50 text-red-500 hover:bg-red-100 border border-red-100'
+                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100'
+                                                    }`}
+                                            >
+                                                {isActive ? '结束' : '开启'}
+                                            </button>
                                         </div>
-                                    );
-                                }) : (
-                                    <div className="text-center py-6 text-gray-300 text-xs font-medium bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                        暂无切片内容
+
+                                        {/* Second Row: Homework Options (if applicable) */}
+                                        {isHomework && (
+                                            <div className="flex justify-end pt-1 animate-in fade-in slide-in-from-top-1">
+                                                <select
+                                                    className="text-[10px] font-bold bg-white border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-blue-400 text-gray-600"
+                                                    value={homeworkModes[slice.id] || 'STASH'}
+                                                    onChange={(e) => handleHomeworkModeChange(slice.id, e.target.value as any)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <option value="STASH">完成后暂存</option>
+                                                    <option value="SUBMIT">完成后提交</option>
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Completion Stats Area */}
+                                        {isActive && (
+                                            <div className="mt-1 pt-2 border-t border-blue-100/50 flex items-center justify-between animate-in slide-in-from-top-1 duration-200">
+                                                <div className="flex items-center gap-1.5 text-blue-600">
+                                                    <Users size={12} />
+                                                    <span className="text-[10px] font-bold">已完成人数</span>
+                                                </div>
+                                                <span className="text-sm font-black text-blue-700 font-mono">
+                                                    {completionStats[slice.id] || 0} <span className="text-[10px] text-blue-400 font-normal">人</span>
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
+                                );
+                            }) : (
+                                <div className="text-center py-6 text-gray-300 text-xs font-medium bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                    暂无切片内容
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                        // IDLE or USED State Display
-                        <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                            <div className="flex justify-between items-center text-gray-500 pb-2 border-b border-gray-200/50">
-                                <span className="text-xs font-bold">课程信息概览</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <span className="block text-[10px] font-bold text-gray-400 uppercase">班级</span>
-                                    <span className="text-sm font-bold text-gray-800">{className}</span>
-                                </div>
-                                <div>
-                                    <span className="block text-[10px] font-bold text-gray-400 uppercase">课节</span>
-                                    <span className="text-sm font-bold text-gray-800">{lessonName}</span>
-                                </div>
-                            </div>
-                            <div className="pt-2">
-                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">包含切片</span>
-                                <div className="flex flex-wrap gap-1">
-                                    {slices.slice(0, 3).map((s, i) => (
-                                        <span key={i} className="text-[10px] px-2 py-1 bg-white border border-gray-200 rounded text-gray-500">
-                                            {s.title}
-                                        </span>
-                                    ))}
-                                    {slices.length > 3 && <span className="text-[10px] px-2 py-1 text-gray-400">+{slices.length - 3}</span>}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
             </div>
 
@@ -291,7 +287,7 @@ export const SliceListCard: React.FC<SliceListCardProps> = ({
                     )}
 
                     {status === 'ACTIVE' && (
-                        <ActionBtn onClick={handleEndClass} variant="secondary" icon={<XCircle size={14} />}>下课结算</ActionBtn>
+                        <ActionBtn onClick={handleEndClass} variant="secondary" icon={<XCircle size={14} />}>关闭</ActionBtn>
                     )}
 
                     {status === 'USED' && (

@@ -19,8 +19,7 @@ export enum InteractionCategory {
   LINK = '外链',
   ONE_STAND = '一站到底',
   COURSE_SLICE = '切片课资源',
-  VIDEO = '视频',
-  CAMERA = '直播流'
+  VIDEO = '视频'
 }
 
 export type TrackType = 'MAIN' | 'OVERLAY';

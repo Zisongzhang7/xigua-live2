@@ -28,7 +28,7 @@ export const DB = {
 export const InteractionCategoryGroup: React.FC<{ label: string; count: number; children: React.ReactNode }> = ({ label, count, children }) => (
     <div className="space-y-4">
         <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-blue-500">{label} ({count})</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">{children}</div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 items-start">{children}</div>
     </div>
 );
 

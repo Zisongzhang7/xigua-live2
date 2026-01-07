@@ -92,23 +92,10 @@ const MAIN_CATEGORIES = [
   InteractionCategory.COURSE_SLICE,
   InteractionCategory.VIDEO,
   InteractionCategory.GANDI_EMBED,
-  InteractionCategory.LINK,
-  InteractionCategory.CAMERA
+  InteractionCategory.LINK
 ];
 
-const CAMERA_RESOURCE: InteractiveResource = {
-  id: 'sys-camera',
-  name: '直播流画面',
-  category: InteractionCategory.CAMERA,
-  labels: ['系统'],
-  creator: 'System',
-  templateName: 'System', // Added implementation detail
-  modifiedAt: new Date().toISOString(),
-  config: {
-    audioSource: 'default',
-    videoSource: 'default'
-  }
-};
+
 
 const OVERLAY_CATEGORIES = [
   InteractionCategory.QUIZ,
@@ -383,32 +370,27 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const handleResourceSelected = (resource: InteractiveResource) => {
     // Special Case: Course Slice Resource - Explode into multiple items
     if (resource.category === InteractionCategory.COURSE_SLICE && resource.config?.slices) {
-      const mode = (resource as any)._mode; // 'homework_only' or undefined
-      let slices = resource.config.slices as any[];
+      const mode = (resource as any)._mode;
+      const originalSlices = resource.config?.slices || [];
+      const slices = mode === 'homework_only'
+        ? originalSlices.filter((s: any) => s.title.includes('作业') || s.type === 'TEXT')
+        : originalSlices;
 
-      if (mode === 'homework_only') {
-        slices = slices.filter((slice: any) => slice.type === '作业');
-      }
-
-      const newItems: InteractionItem[] = slices.map((slice: any, index: number) => ({
-        id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
+      const newItems: InteractionItem[] = [{
+        id: `IR-SLICE-${Date.now()}`,
         resourceId: resource.id,
-        title: slice.title || `切片 ${slice.index}`,
+        title: resource.name, // Use the resource name (Lesson Name)
         type: InteractionCategory.COURSE_SLICE,
         time: '00:00',
-        label: `切片 ${slice.index}`,
+        label: resource.name,
         config: {
           ...resource.config,
-          isSlice: true,
-          sliceIndex: slice.index,
-          sliceType: slice.type,
-          sliceTitle: slice.title,
-          completionCount: 0
+          slices: slices // Use filtered slices
         },
         track: 'MAIN',
         triggerMode: 'MANUAL',
-        duration: slice.duration || 300
-      }));
+        duration: 0
+      }];
 
       setInteractionsList(prev => {
         const newList = [...prev];
@@ -631,36 +613,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     setIsTestLiveModalOpen(false);
   };
 
-  // ... inside component body
-  const handleAddCamera = () => {
-    const newItem: InteractionItem = {
-      id: `IR-CAM${Date.now()}`,
-      title: '直播流画面',
-      type: InteractionCategory.CAMERA,
-      track: 'MAIN',
-      time: new Date().toISOString(),
-      config: {
-        audioSource: 'default',
-        videoSource: 'default',
-      },
-      triggerMode: 'MANUAL',
-      duration: 300
-    };
 
-    setInteractionsList(prev => {
-      const newList = [...prev];
-      if (selectedMainTrackId) {
-        const selectedIndex = prev.findIndex(item => item.id === selectedMainTrackId);
-        if (selectedIndex !== -1) {
-          newList.splice(selectedIndex + 1, 0, newItem);
-          return newList;
-        }
-      }
-      newList.push(newItem);
-      return newList;
-    });
-    setSelectedMainTrackId(newItem.id);
-  };
 
   return (
     <div className="flex flex-col h-full bg-[#F0F2F5]">
@@ -741,98 +694,105 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
       <div className="flex-1 overflow-hidden p-6">
         <ResizableLayout
+          initialWidths={[25, 35, 40]}
           left={
-            <div className="h-full flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar pb-6">
+            <div className="h-full flex flex-col gap-6 overflow-hidden pr-2">
 
               {/* Basic Info / Student Stream */}
               {isLiveMode ? (
-                <StudentTimeStream />
+                <div className="h-full overflow-y-auto custom-scrollbar">
+                  <StudentTimeStream />
+                </div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-6 flex flex-col gap-6">
+                <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-1 overflow-hidden">
 
-                  <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-                    <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                      <Info size={16} className="text-blue-600" />
-                      直播间基础信息
-                    </h3>
-                    <button onClick={() => setIsEditModalOpen(true)} className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">编辑信息</button>
+                  <div className="flex-none px-6 pt-6">
+                    <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                        <Info size={16} className="text-blue-600" />
+                        直播间基础信息
+                      </h3>
+                      <button onClick={() => setIsEditModalOpen(true)} className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">编辑信息</button>
+                    </div>
                   </div>
 
-                  <div className="space-y-4 pl-1">
-                    <InfoItem label="直播名称" content={stream.name} />
-                    <InfoItem label="直播描述" content={stream.description} />
-                    <InfoItem label="课程类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
-                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 space-y-6">
+                    <div className="space-y-4 pl-1">
+                      <InfoItem label="直播名称" content={stream.name} />
+                      <InfoItem label="直播描述" content={stream.description} />
+                      <InfoItem label="课程类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
+                    </div>
 
-                  {/* Live Session List (Only for Normal Live) */}
-                  {stream.type !== LiveType.COURSE && (
-                    <LiveSessionList
-                      sessions={stream.sessions || []}
-                      onAddSession={handleAddSession}
-                      onDeleteSession={handleDeleteSession}
-                      onUpdateSession={handleUpdateSession}
-                    />
-                  )}
+                    {/* Live Session List (Only for Normal Live) */}
+                    {stream.type !== LiveType.COURSE && (
+                      <LiveSessionList
+                        sessions={stream.sessions || []}
+                        onAddSession={handleAddSession}
+                        onDeleteSession={handleDeleteSession}
+                        onUpdateSession={handleUpdateSession}
+                      />
+                    )}
 
-                  {/* Audience Logic */}
-                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                    <h4 className="text-xs font-black text-gray-700 flex items-center gap-2 border-b border-gray-200/50 pb-3 mb-4">
-                      <Users size={14} className="text-blue-500" />
-                      {stream.type === LiveType.COURSE ? '关联直播课节' : '可见人群'}
-                    </h4>
+                    {/* Audience Logic */}
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-2 border-b border-gray-200/50 pb-3 mb-4">
+                        <Users size={14} className="text-blue-500" />
+                        {stream.type === LiveType.COURSE ? '关联直播课节' : '可见人群'}
+                      </h4>
 
-                    {stream.type === LiveType.COURSE ? (
-                      <div className="space-y-4">
-                        <CascadingSearchSelector
-                          onSelect={(c, l) => addItem('CLASS', `${c} - ${l}`)}
-                        />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedItems.CLASS.length > 0 ? selectedItems.CLASS.map(item => (
-                            <TagItem key={item} label={item} onRemove={() => removeItem('CLASS', item)} />
-                          )) : <p className="text-[10px] text-gray-400 italic">尚未选择关联课节</p>}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-4 gap-1 p-1 bg-gray-200/50 rounded-xl mb-4">
-                          <ModeTab active={audienceMode === 'CLASS'} onClick={() => setAudienceMode('CLASS')} icon={<GraduationCap size={14} />} label="按班级" />
-                          <ModeTab active={audienceMode === 'COURSE'} onClick={() => setAudienceMode('COURSE')} icon={<BookOpen size={14} />} label="按课程" />
-                          <ModeTab active={audienceMode === 'USER_TYPE'} onClick={() => setAudienceMode('USER_TYPE')} icon={<UserCircle size={14} />} label="按类型" />
-                          <ModeTab active={audienceMode === 'ID'} onClick={() => setAudienceMode('ID')} icon={<Hash size={14} />} label="按学号" />
-                        </div>
-
-                        <div className="min-h-[100px] flex flex-col gap-3">
-                          {audienceMode === 'ID' ? (
-                            <div className="space-y-3">
-                              <textarea
-                                placeholder="请输入学号，多个学号用逗号或换行分隔"
-                                className="w-full bg-white border border-gray-200 rounded-xl p-3 text-xs outline-none focus:border-blue-500 h-24"
-                              />
-                              <div className="flex items-center justify-between">
-                                <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100">
-                                  <FileSpreadsheet size={14} /> 上传 Excel
-                                </button>
-                                <button className="flex items-center gap-1 text-[10px] text-gray-400 font-bold hover:text-blue-500 transition-colors">
-                                  <Download size={12} /> 下载导入模板
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <SearchableMultiSelect
-                              mode={audienceMode}
-                              options={audienceMode === 'CLASS' ? DB.CLASSES : audienceMode === 'COURSE' ? DB.COURSES : DB.USER_TYPES}
-                              onAdd={(v) => addItem(audienceMode, v)}
-                            />
-                          )}
-
-                          <div className="flex flex-wrap gap-2">
-                            {selectedItems[audienceMode].map(item => (
-                              <TagItem key={item} label={item} onRemove={() => removeItem(audienceMode, item)} />
-                            ))}
+                      {stream.type === LiveType.COURSE ? (
+                        <div className="space-y-4">
+                          <CascadingSearchSelector
+                            onSelect={(c, l) => addItem('CLASS', `${c} - ${l}`)}
+                          />
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedItems.CLASS.length > 0 ? selectedItems.CLASS.map(item => (
+                              <TagItem key={item} label={item} onRemove={() => removeItem('CLASS', item)} />
+                            )) : <p className="text-[10px] text-gray-400 italic">尚未选择关联课节</p>}
                           </div>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-gray-200/50 rounded-xl mb-4">
+                            <ModeTab active={audienceMode === 'CLASS'} onClick={() => setAudienceMode('CLASS')} icon={<GraduationCap size={14} />} label="按班级" />
+                            <ModeTab active={audienceMode === 'COURSE'} onClick={() => setAudienceMode('COURSE')} icon={<BookOpen size={14} />} label="按课程" />
+                            <ModeTab active={audienceMode === 'USER_TYPE'} onClick={() => setAudienceMode('USER_TYPE')} icon={<UserCircle size={14} />} label="按类型" />
+                            <ModeTab active={audienceMode === 'ID'} onClick={() => setAudienceMode('ID')} icon={<Hash size={14} />} label="按学号" />
+                          </div>
+
+                          <div className="min-h-[100px] flex flex-col gap-3">
+                            {audienceMode === 'ID' ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  placeholder="请输入学号，多个学号用逗号或换行分隔"
+                                  className="w-full bg-white border border-gray-200 rounded-xl p-3 text-xs outline-none focus:border-blue-500 h-24"
+                                />
+                                <div className="flex items-center justify-between">
+                                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100">
+                                    <FileSpreadsheet size={14} /> 上传 Excel
+                                  </button>
+                                  <button className="flex items-center gap-1 text-[10px] text-gray-400 font-bold hover:text-blue-500 transition-colors">
+                                    <Download size={12} /> 下载导入模板
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <SearchableMultiSelect
+                                mode={audienceMode}
+                                options={audienceMode === 'CLASS' ? DB.CLASSES : audienceMode === 'COURSE' ? DB.COURSES : DB.USER_TYPES}
+                                onAdd={(v) => addItem(audienceMode, v)}
+                              />
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                              {selectedItems[audienceMode].map(item => (
+                                <TagItem key={item} label={item} onRemove={() => removeItem(audienceMode, item)} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -871,7 +831,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                   {/* Text Overlay for Non-Camera Active Items */}
                   {(() => {
                     const activeItem = interactionsList.find(i => i.id === activeMainTrackId);
-                    if (activeItem && activeItem.type !== InteractionCategory.CAMERA) {
+                    if (activeItem) {
                       return (
                         <div className="absolute inset-0 bg-gray-900 z-20 flex flex-col items-center justify-center text-white p-8 text-center">
                           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
@@ -1208,7 +1168,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
       <ResourceSelectionModal
         isOpen={isSelectionModalOpen}
         onClose={() => setIsSelectionModalOpen(false)}
-        resources={[CAMERA_RESOURCE, ...resources]}
+        resources={[...resources]}
         onSelect={handleResourceSelected}
         allowedCategories={selectionModalCategoryFilter}
       />
