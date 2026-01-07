@@ -146,6 +146,14 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
   // Initialize from stream data
   const [interactionsList, setInteractionsList] = useState<InteractionItem[]>(initialStream.configuredInteractions || []);
+  // Auto-save interactions to DB whenever interactionsList changes
+  useEffect(() => {
+    if (stream && stream.id) {
+      db.streams.update(stream.id, { configuredInteractions: interactionsList });
+    }
+  }, [interactionsList, stream.id]);
+
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -576,6 +584,9 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         }
       });
+    } else {
+      console.error("Template data missing or invalid:", template);
+      alert("无法加载模板：模板数据不完整 (缺少 items 配置)");
     }
   };
 
@@ -1311,7 +1322,15 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         {tpl.labels.map(l => <span key={l} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{l}</span>)}
                       </div>
                     </div>
-                    <button className="w-full py-2 bg-blue-50 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-600 hover:text-white transition-all">确认使用</button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLoadTemplate(tpl.id);
+                      }}
+                      className="w-full py-2 bg-blue-50 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                    >
+                      确认使用
+                    </button>
                   </div>
                 ))}
                 {templates.length === 0 && <div className="col-span-full text-center text-gray-400 py-10">暂无可用模板</div>}

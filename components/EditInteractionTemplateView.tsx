@@ -137,6 +137,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
       id: initialTemplate?.id || `IT-${Math.floor(Math.random() * 10000)}`,
       name: name,
       labels: selectedLabels,
+      items: interactions,
       interactionCount: interactions.length,
       creator: initialTemplate?.creator || 'Administrator',
       modifiedAt: new Date().toLocaleString()
