@@ -22,6 +22,7 @@ import { COMMON_LABELS } from '../App';
 import { ResourceSelectionModal } from './LiveSetupComponents';
 import { QuizCard, QuizStatus } from './QuizCard';
 import { SliceListCard, SliceListStatus } from './SliceListCard';
+import { AISwitchCard, AISwitchStatus } from './AISwitchCard';
 
 interface InteractionState {
   status: QuizStatus;
@@ -300,6 +301,23 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                   onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                   onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
                                   onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+                            if (item.type === InteractionCategory.AI_SWITCH) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <AISwitchCard
+                                  key={item.id}
+                                  id={item.id}
+                                  status={state.status as AISwitchStatus}
+                                  config={item.config}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onConfigChange={(c) => {
+                                    setInteractions(prev => prev.map(i => i.id === item.id ? { ...i, config: c } : i));
+                                  }}
+                                  isReadOnly={false} // Template editor is editable
                                 />
                               );
                             }

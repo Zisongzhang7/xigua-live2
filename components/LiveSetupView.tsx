@@ -57,6 +57,7 @@ import { GandiCard, GandiStatus } from './GandiCard';
 import { LinkCard, LinkStatus } from './LinkCard';
 import { ModelCard, ModelStatus } from './ModelCard';
 import { SliceListCard, SliceListStatus } from './SliceListCard';
+import { AISwitchCard, AISwitchStatus } from './AISwitchCard';
 import { db } from '../services/db';
 import {
   InteractionCategoryGroup,
@@ -102,7 +103,9 @@ const OVERLAY_CATEGORIES = [
   InteractionCategory.DEBATE,
   InteractionCategory.ONE_STAND,
   InteractionCategory.VOTE,
-  InteractionCategory.MODEL
+  InteractionCategory.VOTE,
+  InteractionCategory.MODEL,
+  InteractionCategory.AI_SWITCH
 ];
 
 const parseTime = (timeStr: string) => {
@@ -115,7 +118,7 @@ const parseTime = (timeStr: string) => {
 type AudienceMode = 'CLASS' | 'COURSE' | 'USER_TYPE' | 'ID';
 
 interface InteractionState {
-  status: QuizStatus | VoteStatus | DebateStatus | EliminationStatus | GandiStatus | LinkStatus | ModelStatus | SliceListStatus;
+  status: QuizStatus | VoteStatus | DebateStatus | EliminationStatus | GandiStatus | LinkStatus | ModelStatus | SliceListStatus | AISwitchStatus;
   votes: Record<string, number> | { pro: number; con: number };
   isExpanded: boolean;
 }
@@ -363,6 +366,27 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
 
   const handleAddInteraction = (categories?: InteractionCategory[]) => {
+    // Special handling for AI Switch: Add directly without resource selection
+    if (categories && categories.length === 1 && categories[0] === InteractionCategory.AI_SWITCH) {
+      const newInteraction: InteractionItem = {
+        id: `AI-${Date.now()}`,
+        title: 'AI 助手开关',
+        type: InteractionCategory.AI_SWITCH,
+        time: '00:00',
+        label: '系统组件',
+        track: 'OVERLAY',
+        triggerMode: 'MANUAL',
+        duration: 0,
+        config: {
+          agentId: '数学辅导 Agent',
+          displayMode: 'LARGE'
+        }
+      };
+
+      setInteractionsList(prev => [...prev, newInteraction]);
+      return;
+    }
+
     setSelectionModalCategoryFilter(categories);
     setIsSelectionModalOpen(true);
   };
@@ -1111,6 +1135,20 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                 isExpanded={state.isExpanded}
                                 onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                 onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                              />
+                            );
+                          }
+
+                          if (item.type === InteractionCategory.AI_SWITCH) {
+                            return (
+                              <AISwitchCard
+                                key={item.id}
+                                id={item.id}
+                                status={state.status as AISwitchStatus}
+                                config={item.config}
+                                onDelete={() => handleDeleteInteraction(item.id)}
+                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                onConfigChange={(c) => handleUpdateInteraction(item.id, { config: c })}
                               />
                             );
                           }

@@ -131,9 +131,11 @@ const InteractiveResourceList: React.FC<InteractiveResourceListProps> = ({
               className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-700 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none"
             >
               <option value="">全部类别</option>
-              {Object.values(InteractionCategory).map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              {Object.values(InteractionCategory)
+                .filter(cat => cat !== InteractionCategory.AI_SWITCH)
+                .map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
             </select>
           </div>
 

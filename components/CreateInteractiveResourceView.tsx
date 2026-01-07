@@ -649,18 +649,20 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                   <h2 className="text-base font-black text-gray-900 tracking-tight uppercase">选择交互类型</h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-                  {Object.values(InteractionCategory).map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-3 ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                    >
-                      <div className={`${selectedCategory === cat ? 'text-white' : 'text-blue-500'}`}>
-                        {getCategoryIcon(cat, 24)}
-                      </div>
-                      <span className="text-[10px] font-black whitespace-nowrap">{cat}</span>
-                    </button>
-                  ))}
+                  {Object.values(InteractionCategory)
+                    .filter(cat => cat !== InteractionCategory.AI_SWITCH)
+                    .map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-3 ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                      >
+                        <div className={`${selectedCategory === cat ? 'text-white' : 'text-blue-500'}`}>
+                          {getCategoryIcon(cat, 24)}
+                        </div>
+                        <span className="text-[10px] font-black whitespace-nowrap">{cat}</span>
+                      </button>
+                    ))}
                 </div>
               </section>
             )}

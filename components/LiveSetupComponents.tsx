@@ -228,7 +228,28 @@ export const ResourceSelectionModal: React.FC<ResourceSelectionModalProps> = ({ 
     }, [ALL_LABELS, labelSearch]);
 
     const filteredResources = useMemo(() => {
-        return resources.filter(res => {
+        let baseResources = [...resources];
+
+        // 1. Inject Virtual AI Switch Resource if allowed
+        const isAISwitchAllowed = !allowedCategories || allowedCategories.includes(InteractionCategory.AI_SWITCH);
+        if (isAISwitchAllowed) {
+            const virtualAI: InteractiveResource = {
+                id: 'SYS_AI_SWITCH',
+                name: 'AI 助手开关 (系统)',
+                category: InteractionCategory.AI_SWITCH,
+                templateName: '系统组件',
+                creator: 'System',
+                modifiedAt: new Date().toLocaleString(),
+                labels: ['系统', 'AI'],
+                config: {
+                    agentId: '数学辅导 Agent',
+                    displayMode: 'LARGE'
+                }
+            };
+            baseResources.unshift(virtualAI);
+        }
+
+        return baseResources.filter(res => {
             // Filter by allowedCategories if present
             if (allowedCategories && allowedCategories.length > 0) {
                 if (!allowedCategories.includes(res.category)) return false;
