@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Mic, Video, Layout, PictureInPicture, Maximize, StopCircle } from 'lucide-react';
+import { Mic, Video, Layout, PictureInPicture, Maximize, StopCircle, MicOff, VideoOff } from 'lucide-react';
 
 export const LiveControlPanel: React.FC = () => {
     // Mode: 'NONE' | 'FULLSCREEN' | 'PIP'
     const [cutInMode, setCutInMode] = useState<'NONE' | 'FULLSCREEN' | 'PIP'>('NONE');
     const [audioSource, setAudioSource] = useState('default');
     const [videoSource, setVideoSource] = useState('facetime');
+    const [isMicMuted, setIsMicMuted] = useState(false);
+    const [isCameraOff, setIsCameraOff] = useState(false);
 
     const toggleMode = (mode: 'FULLSCREEN' | 'PIP') => {
         if (cutInMode === mode) {
@@ -18,29 +20,53 @@ export const LiveControlPanel: React.FC = () => {
     return (
         <div className="bg-gray-200/50 rounded-xl p-4 flex flex-col gap-4">
             <div className="flex gap-4">
-                <div className="flex-1 bg-white border border-gray-300 rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm hover:border-blue-400 transition-colors relative">
-                    <Mic size={16} className="text-gray-500 mr-2 absolute left-3 pointer-events-none" />
+                <div className={`flex-1 bg-white border rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition-colors relative ${isMicMuted ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                    {isMicMuted ? (
+                        <MicOff size={16} className="text-red-500 mr-2 shrink-0" />
+                    ) : (
+                        <Mic size={16} className="text-gray-500 mr-2 shrink-0" />
+                    )}
                     <select
-                        className="w-full pl-6 bg-transparent outline-none appearance-none cursor-pointer"
+                        className="flex-1 bg-transparent outline-none appearance-none cursor-pointer min-w-0"
                         value={audioSource}
                         onChange={(e) => setAudioSource(e.target.value)}
+                        disabled={isMicMuted}
                     >
                         <option value="default">默认麦克风 (Default)</option>
                         <option value="external">外接麦克风 (External USB)</option>
                         <option value="system">系统内录 (System Audio)</option>
                     </select>
+                    <button
+                        onClick={() => setIsMicMuted(!isMicMuted)}
+                        className={`ml-2 p-1.5 rounded-md transition-all ${isMicMuted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+                        title={isMicMuted ? "开启麦克风" : "关闭麦克风"}
+                    >
+                        {isMicMuted ? <MicOff size={14} /> : <Mic size={14} />}
+                    </button>
                 </div>
-                <div className="flex-1 bg-white border border-gray-300 rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm hover:border-blue-400 transition-colors relative">
-                    <Video size={16} className="text-gray-500 mr-2 absolute left-3 pointer-events-none" />
+                <div className={`flex-1 bg-white border rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition-colors relative ${isCameraOff ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                    {isCameraOff ? (
+                        <VideoOff size={16} className="text-red-500 mr-2 shrink-0" />
+                    ) : (
+                        <Video size={16} className="text-gray-500 mr-2 shrink-0" />
+                    )}
                     <select
-                        className="w-full pl-6 bg-transparent outline-none appearance-none cursor-pointer"
+                        className="flex-1 bg-transparent outline-none appearance-none cursor-pointer min-w-0"
                         value={videoSource}
                         onChange={(e) => setVideoSource(e.target.value)}
+                        disabled={isCameraOff}
                     >
                         <option value="facetime">FaceTime HD Camera</option>
                         <option value="obs">OBS Virtual Camera</option>
                         <option value="capture">采集卡 (Capture Card)</option>
                     </select>
+                    <button
+                        onClick={() => setIsCameraOff(!isCameraOff)}
+                        className={`ml-2 p-1.5 rounded-md transition-all ${isCameraOff ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+                        title={isCameraOff ? "开启摄像头" : "关闭摄像头"}
+                    >
+                        {isCameraOff ? <VideoOff size={14} /> : <Video size={14} />}
+                    </button>
                 </div>
             </div>
             <div className="flex gap-4">
