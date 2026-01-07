@@ -703,9 +703,10 @@ export const ResizableLayout: React.FC<{
     left: React.ReactNode;
     middle: React.ReactNode;
     right: React.ReactNode;
-}> = ({ left, middle, right }) => {
+    initialWidths?: number[];
+}> = ({ left, middle, right, initialWidths = [25, 50, 25] }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [widths, setWidths] = useState([25, 50, 25]); // Percentages
+    const [widths, setWidths] = useState(initialWidths); // Percentages
     const isDragging = useRef<number | null>(null);
 
     useEffect(() => {

@@ -1,15 +1,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  ChevronLeft, 
-  Save, 
-  Plus, 
-  Trash2, 
-  Clock, 
-  List, 
-  Search, 
-  X, 
-  Tag as TagIcon, 
+import {
+  ChevronLeft,
+  Save,
+  Plus,
+  Trash2,
+  Clock,
+  List,
+  Search,
+  X,
+  Tag as TagIcon,
   GripVertical,
   Settings2,
   FileStack,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { InteractionTemplate, InteractiveResource, InteractionCategory } from '../types';
 import { COMMON_LABELS } from '../App';
-import { ResourceSelectionModal } from './LiveSetupView'; 
+import { ResourceSelectionModal } from './LiveSetupView';
 import { QuizCard, QuizStatus } from './QuizCard';
 
 interface InteractionItem {
@@ -44,11 +44,11 @@ interface EditInteractionTemplateViewProps {
   onSave: (template: InteractionTemplate) => void;
 }
 
-const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = ({ 
-  initialTemplate, 
-  resources, 
-  onBack, 
-  onSave 
+const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = ({
+  initialTemplate,
+  resources,
+  onBack,
+  onSave
 }) => {
   const [name, setName] = useState(initialTemplate?.name || '');
   const [selectedLabels, setSelectedLabels] = useState<string[]>(initialTemplate?.labels || []);
@@ -76,7 +76,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
   }, [initialTemplate]);
 
   const toggleLabel = (label: string) => {
-    setSelectedLabels(prev => 
+    setSelectedLabels(prev =>
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     );
   };
@@ -120,7 +120,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
 
   const handleSave = () => {
     if (!name.trim()) return alert('请输入模板名称');
-    
+
     const template: InteractionTemplate = {
       id: initialTemplate?.id || `IT-${Math.floor(Math.random() * 10000)}`,
       name: name,
@@ -153,7 +153,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
       {/* Header */}
       <nav className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0 z-50 sticky top-0">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={onBack}
             className="p-2 hover:bg-gray-50 rounded-full text-gray-400 transition-all active:scale-90"
           >
@@ -172,7 +172,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
           <button onClick={onBack} className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:bg-gray-50 rounded-xl transition-all">
             取消模板
           </button>
-          <button 
+          <button
             onClick={handleSave}
             className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black flex items-center gap-2 shadow-xl shadow-indigo-100 transition-all active:scale-95"
           >
@@ -185,21 +185,21 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-20">
         <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-          
+
           {/* 模板信息模块 (Brain Map: 模板信息模块 - 名称在上，标签在下) */}
           <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-10">
             <div className="flex items-center gap-3 border-l-4 border-indigo-500 pl-4">
               <FileStack size={20} className="text-indigo-500" />
               <h2 className="text-base font-black text-gray-900 tracking-tight uppercase">模板信息模块</h2>
             </div>
-            
+
             <div className="flex flex-col gap-10">
               {/* 名称模块 - 位于上方 */}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-2">
                   模板名称 <span className="text-red-500">*</span>
                 </label>
-                <input 
+                <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="请输入用于快速识别的模板名称..."
@@ -214,7 +214,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                 </label>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {COMMON_LABELS.map(label => (
-                    <button 
+                    <button
                       key={label}
                       onClick={() => toggleLabel(label)}
                       className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedLabels.includes(label) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-100 text-gray-500 hover:border-indigo-400'}`}
@@ -234,16 +234,16 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                 <Settings2 size={20} className="text-indigo-500" />
                 <h2 className="text-base font-black text-gray-900 tracking-tight uppercase">交互配置模块</h2>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                  <button 
+                  <button
                     onClick={() => setActiveTab('LIST')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'LIST' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                   >
                     <List size={14} /> 列表模式
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('TIMELINE')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'TIMELINE' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                   >
@@ -253,7 +253,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
 
                 <div className="w-px h-6 bg-gray-200 mx-1"></div>
 
-                <button 
+                <button
                   onClick={() => setSelectionModalOpen(true)}
                   className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-100"
                 >
@@ -274,31 +274,31 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-indigo-500">{cat} ({group.length})</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                           {group.map(item => {
-                             if (item.type === InteractionCategory.QUIZ) {
-                               const state = getInteractionState(item.id);
-                               return (
-                                 <QuizCard 
-                                    key={item.id} 
-                                    id={item.id} 
-                                    title={item.title} 
-                                    time={item.time}
-                                    onDelete={() => handleDeleteInteraction(item.id)} 
-                                    status={state.status}
-                                    votes={state.votes}
-                                    isExpanded={state.isExpanded}
-                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                    onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
-                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                                 />
-                               );
-                             }
-                             return (
-                               <InteractionCard 
-                                  key={item.id} 
-                                  item={item} 
-                                  onDelete={() => handleDeleteInteraction(item.id)} 
-                               />
-                             );
+                            if (item.type === InteractionCategory.QUIZ) {
+                              const state = getInteractionState(item.id);
+                              return (
+                                <QuizCard
+                                  key={item.id}
+                                  id={item.id}
+                                  title={item.title}
+                                  time={item.time}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                  status={state.status}
+                                  votes={state.votes}
+                                  isExpanded={state.isExpanded}
+                                  onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                  onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                  onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                />
+                              );
+                            }
+                            return (
+                              <InteractionCard
+                                key={item.id}
+                                item={item}
+                                onDelete={() => handleDeleteInteraction(item.id)}
+                              />
+                            );
                           })}
                         </div>
                       </div>
@@ -316,11 +316,11 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
               ) : (
                 <div className="relative pl-12 ml-4 animate-in slide-in-from-left-4 duration-300">
                   <div className="absolute left-[13px] top-0 bottom-0 w-[2px] bg-indigo-100 rounded-full"></div>
-                  
+
                   <div className="space-y-10 relative">
                     {interactions.map((item, idx) => (
-                      <div 
-                        key={item.id} 
+                      <div
+                        key={item.id}
                         className={`relative group transition-all ${draggedItemIndex === idx ? 'opacity-40' : 'opacity-100'}`}
                         draggable="true"
                         onDragStart={() => handleDragStart(idx)}
@@ -330,32 +330,32 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                         <div className="absolute left-[-40px] top-[14px] w-[28px] h-[28px] rounded-full bg-white border-4 border-indigo-600 shadow-sm z-10 flex items-center justify-center group-hover:scale-110 transition-transform">
                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-600"></div>
                         </div>
-                        
+
                         {item.type === InteractionCategory.QUIZ ? (
-                            <QuizCard 
-                              id={item.id} 
-                              title={item.title} 
-                              time={item.time}
-                              onDelete={() => handleDeleteInteraction(item.id)}
-                              dragHandle={
-                                <div className="p-1 mr-1 text-gray-200 group-hover:text-indigo-300 transition-colors cursor-grab active:cursor-grabbing">
-                                  <GripVertical size={20} />
-                                </div>
-                              }
-                              status={getInteractionState(item.id).status}
-                              votes={getInteractionState(item.id).votes}
-                              isExpanded={getInteractionState(item.id).isExpanded}
-                              onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                              onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
-                              onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                            />
+                          <QuizCard
+                            id={item.id}
+                            title={item.title}
+                            time={item.time}
+                            onDelete={() => handleDeleteInteraction(item.id)}
+                            dragHandle={
+                              <div className="p-1 mr-1 text-gray-200 group-hover:text-indigo-300 transition-colors cursor-grab active:cursor-grabbing">
+                                <GripVertical size={20} />
+                              </div>
+                            }
+                            status={getInteractionState(item.id).status}
+                            votes={getInteractionState(item.id).votes}
+                            isExpanded={getInteractionState(item.id).isExpanded}
+                            onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                            onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                            onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                          />
                         ) : (
                           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center group-hover:border-indigo-300 transition-all duration-300">
                             <div className="flex items-center gap-6">
                               <div className="p-2 text-gray-200 group-hover:text-indigo-300 transition-colors cursor-grab active:cursor-grabbing">
                                 <GripVertical size={20} />
                               </div>
-                              
+
                               <div>
                                 <div className="flex items-center gap-3">
                                   <p className="text-sm font-black text-gray-900">{item.title}</p>
@@ -363,12 +363,12 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                     {item.type}
                                   </span>
                                 </div>
-                                
+
                                 <div className="mt-1 flex items-center gap-1.5 group/label">
                                   <Info size={12} className="text-gray-300" />
                                   {editingLabelId === item.id ? (
                                     <div className="flex items-center gap-2">
-                                      <input 
+                                      <input
                                         autoFocus
                                         value={item.label || ''}
                                         onChange={(e) => handleLabelUpdate(item.id, e.target.value)}
@@ -381,7 +381,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                       </button>
                                     </div>
                                   ) : (
-                                    <p 
+                                    <p
                                       onClick={() => setEditingLabelId(item.id)}
                                       className="text-xs text-gray-400 hover:text-indigo-400 hover:underline decoration-dotted transition-colors cursor-text"
                                     >
@@ -391,8 +391,8 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                                 </div>
                               </div>
                             </div>
-                            
-                            <button 
+
+                            <button
                               onClick={() => handleDeleteInteraction(item.id)}
                               className="p-2.5 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                               title="删除"
@@ -411,7 +411,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
         </div>
       </main>
 
-      <ResourceSelectionModal 
+      <ResourceSelectionModal
         isOpen={isSelectionModalOpen}
         onClose={() => setSelectionModalOpen(false)}
         resources={resources}
@@ -431,14 +431,14 @@ const InteractionCard: React.FC<{ item: InteractionItem; onDelete: () => void }>
     </div>
     <h5 className="text-sm font-black text-gray-900 mb-1">{item.title}</h5>
     <p className="text-[10px] text-gray-400 font-bold truncate">{item.label || '暂无说明'}</p>
-    
+
     <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
-       <button 
+      <button
         onClick={onDelete}
         className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-500 transition-colors"
-       >
-         <Trash2 size={14} />
-       </button>
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   </div>
 );
