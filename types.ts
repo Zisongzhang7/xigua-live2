@@ -68,7 +68,6 @@ export interface LiveStream {
 export interface FilterParams {
   name: string;
   id: string;
-  teacher: string;
   type: string;
 }
 
@@ -91,4 +90,17 @@ export interface InteractionTemplate {
   creator: string;
   modifiedAt: string;
   items?: InteractionItem[];
+}
+
+/**
+ * PRD 模式：元素说明（按“页面作用域 + 元素 selector”存储）
+ * key 建议为 `${scopeKey}::${selector}`，便于快速定位与去重。
+ */
+export interface PrdNote {
+  key: string;
+  scopeKey: string;
+  selector: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -137,6 +137,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [selectedMainTrackId, setSelectedMainTrackId] = useState<string | null>(null); // New State for focusing Main item
   const [activeMainTrackId, setActiveMainTrackId] = useState<string | null>(null); // Currently Live Main Item
   const [completedMainTrackIds, setCompletedMainTrackIds] = useState<Set<string>>(new Set()); // History of played items
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null); // Selected Session for Start Live
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null); // Track loaded template
   const [currentTemplateName, setCurrentTemplateName] = useState<string | null>(null); // Track loaded template name
@@ -648,7 +649,18 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     setIsTestLiveModalOpen(false);
   };
 
-
+  const startLiveValidation = useMemo(() => {
+    if (stream.type === LiveType.ORDINARY) {
+      if (!selectedSessionId) return { valid: false, msg: '未选择直播场次' };
+      const hasAudience = selectedItems[audienceMode] && selectedItems[audienceMode].length > 0;
+      if (!hasAudience) return { valid: false, msg: '未配置可见人群' };
+    } else {
+      // COURSE
+      const hasClass = selectedItems.CLASS && selectedItems.CLASS.length > 0;
+      if (!hasClass) return { valid: false, msg: '未配置关联课节' };
+    }
+    return { valid: true, msg: '' };
+  }, [stream.type, selectedSessionId, selectedItems, audienceMode]);
 
   return (
     <div className="flex flex-col h-full bg-[#F0F2F5]">
@@ -715,13 +727,30 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 <TestTube2 size={16} />
                 直播测试
               </button>
-              <button
-                onClick={() => setIsLiveMode(true)}
-                className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-lg shadow-blue-100 flex items-center gap-2 text-sm font-bold active:scale-95"
+              {/* Tooltip Wrapper */}
+              <div
+                className="relative group/tooltip"
+                title={!startLiveValidation.valid ? startLiveValidation.msg : ''}
               >
-                <Play size={16} fill="white" />
-                开始直播
-              </button>
+                <button
+                  onClick={() => setIsLiveMode(true)}
+                  disabled={!startLiveValidation.valid}
+                  className={`px-6 py-2 rounded-lg transition-all shadow-lg flex items-center gap-2 text-sm font-bold active:scale-95 ${!startLiveValidation.valid
+                    ? 'bg-gray-300 text-white cursor-not-allowed shadow-none'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100'
+                    }`}
+                >
+                  <Play size={16} fill="white" />
+                  开始直播
+                </button>
+                {/* Custom Tooltip for better visibility if browser tooltip is not enough */}
+                {!startLiveValidation.valid && (
+                  <div className="absolute top-full right-0 mt-2 px-3 py-1.5 bg-gray-800 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity z-50 pointer-events-none">
+                    {startLiveValidation.msg}
+                    <div className="absolute -top-1 right-6 w-2 h-2 bg-gray-800 rotate-45"></div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -755,7 +784,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     <div className="space-y-4 pl-1">
                       <InfoItem label="直播名称" content={stream.name} />
                       <InfoItem label="直播描述" content={stream.description} />
-                      <InfoItem label="课程类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
+                      <InfoItem label="直播类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
                     </div>
 
                     {/* Live Session List (Only for Normal Live) */}
@@ -765,6 +794,8 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         onAddSession={handleAddSession}
                         onDeleteSession={handleDeleteSession}
                         onUpdateSession={handleUpdateSession}
+                        selectedSessionId={selectedSessionId}
+                        onSelectSession={setSelectedSessionId}
                       />
                     )}
 
@@ -1254,7 +1285,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
               <div className="p-6 space-y-4">
                 <div className="bg-orange-50 text-orange-700 text-sm p-3 rounded-lg flex items-start gap-2">
                   <Info size={16} className="mt-0.5 shrink-0" />
-                  <p>测试模式下，仅指定的测试账号可见直播内容。用于正式开播前的最后调试。</p>
+                  <p>测试模式下，仅指定的测试账号可见直播内容。开始测试后，请使用测试账号登录学习端，从【通知】中进入直播间。</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-700 uppercase">测试账号 (学号)</label>
@@ -1275,10 +1306,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 </button>
                 <button
                   onClick={handleStartTestLive}
-                  disabled={!testStudentIds.trim()}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold hover:shadow-lg hover:shadow-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                  // disabled={!testStudentIds.trim()} // 学号非必填
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold hover:shadow-lg hover:shadow-orange-200 transition-all active:scale-95"
                 >
-                  开始测试直播
+                  开始直播测试
                 </button>
               </div>
             </div>

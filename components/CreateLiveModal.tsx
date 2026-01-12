@@ -118,7 +118,7 @@ const CreateLiveModal: React.FC<CreateLiveModalProps> = ({ isOpen, onClose, onCr
                   type="text"
                   value={liveName}
                   onChange={(e) => setLiveName(e.target.value)}
-                  placeholder="请输入吸引人的直播间名称"
+                  placeholder="主要用于内部管理，普通直播的学生侧展示名称在管理页场次中设置"
                   className={`w-full bg-gray-50 border ${liveName.trim() === '' ? 'border-gray-200' : 'border-blue-300'} rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm`}
                 />
               </div>
@@ -129,7 +129,7 @@ const CreateLiveModal: React.FC<CreateLiveModalProps> = ({ isOpen, onClose, onCr
                   rows={2}
                   value={liveDesc}
                   onChange={(e) => setLiveDesc(e.target.value)}
-                  placeholder="简单介绍一下直播内容吧..."
+                  placeholder="主要用于内部管理，方便内部人员快速了解直播间用途"
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none shadow-sm"
                 />
               </div>
@@ -152,7 +152,7 @@ const CreateLiveModal: React.FC<CreateLiveModalProps> = ({ isOpen, onClose, onCr
                       <div className="text-sm text-gray-700">
                         <span className="font-bold text-blue-600">点击上传封面图</span>
                       </div>
-                      <p className="text-xs text-gray-400 font-medium">推荐 1280 × 720 px, 2MB以内</p>
+                      <p className="text-xs text-gray-400 font-medium">推荐使用4:3比例</p>
                     </div>
                   )}
                   {coverImage && (

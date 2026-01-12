@@ -22,7 +22,6 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
   const [filters, setFilters] = useState<FilterParams>({
     name: '',
     id: '',
-    teacher: '',
     type: ''
   });
 
@@ -32,7 +31,7 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
   };
 
   const resetFilters = () => {
-    setFilters({ name: '', id: '', teacher: '', type: '' });
+    setFilters({ name: '', id: '', type: '' });
   };
 
   const handleCreateLive = async (newStream: LiveStream) => {
@@ -40,16 +39,19 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
     await db.streams.add(newStream);
   };
 
+  const handleDeleteStream = async (id: string) => {
+    await db.streams.delete(id);
+  };
+
   const filteredStreams = useMemo(() => {
     return streams.filter(stream => {
       const matchName = stream.name.toLowerCase().includes(filters.name.toLowerCase());
       const matchId = stream.id.toLowerCase().includes(filters.id.toLowerCase());
-      const matchTeacher = stream.teacher.toLowerCase().includes(filters.teacher.toLowerCase());
       const matchType = filters.type === '' || stream.type === filters.type;
 
       const matchTab = activeTab === 'ALL' || (activeTab === 'MY' && stream.id.includes('9001'));
 
-      return matchName && matchId && matchTeacher && matchType && matchTab;
+      return matchName && matchId && matchType && matchTab;
     });
   }, [streams, filters, activeTab]);
 
@@ -76,7 +78,7 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-all shadow-md active:scale-95"
         >
           <Plus size={18} />
-          新建直播
+          新建直播间
         </button>
       </div>
 
@@ -102,16 +104,6 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
             value={filters.id}
             onChange={handleFilterChange}
             placeholder="搜索 ID..."
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-4 text-sm text-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">主播/老师</label>
-          <input
-            name="teacher"
-            value={filters.teacher}
-            onChange={handleFilterChange}
-            placeholder="姓名..."
             className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-4 text-sm text-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none"
           />
         </div>
@@ -147,6 +139,7 @@ const LiveStreamList: React.FC<LiveStreamListProps> = ({ onEnterSetup }) => {
               key={stream.id}
               stream={stream}
               onClick={() => onEnterSetup?.(stream)}
+              onDelete={handleDeleteStream}
             />
           ))
         ) : (

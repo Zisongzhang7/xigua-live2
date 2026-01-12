@@ -7,9 +7,11 @@ interface LiveSessionListProps {
     onAddSession: (session: Omit<LiveSession, 'id'>) => void;
     onDeleteSession: (id: string) => void;
     onUpdateSession: (id: string, updates: Partial<LiveSession>) => void;
+    selectedSessionId?: string | null;
+    onSelectSession?: (id: string) => void;
 }
 
-const LiveSessionList: React.FC<LiveSessionListProps> = ({ sessions, onAddSession, onDeleteSession, onUpdateSession }) => {
+const LiveSessionList: React.FC<LiveSessionListProps> = ({ sessions, onAddSession, onDeleteSession, onUpdateSession, selectedSessionId, onSelectSession }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [newSession, setNewSession] = useState<Partial<LiveSession>>({
         name: '',
@@ -56,7 +58,7 @@ const LiveSessionList: React.FC<LiveSessionListProps> = ({ sessions, onAddSessio
             {isAdding && (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3 animate-in fade-in slide-in-from-top-2">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">场次名称</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">场次名称（学生端显示名称）</label>
                         <input
                             type="text"
                             className="w-full text-xs p-2 rounded border border-gray-300 focus:border-blue-500 outline-none"
@@ -119,8 +121,14 @@ const LiveSessionList: React.FC<LiveSessionListProps> = ({ sessions, onAddSessio
                 ) : (
                     sortedSessions.map(session => {
                         const status = getStatus(session.startTime);
+                        const isSelected = selectedSessionId === session.id;
                         return (
-                            <div key={session.id} className="group relative bg-white border border-gray-100 rounded-xl p-3 hover:shadow-md hover:border-blue-200 transition-all">
+                            <div
+                                key={session.id}
+                                onClick={() => onSelectSession?.(session.id)}
+                                className={`group relative bg-white border rounded-xl p-3 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/10' : 'border-gray-100 hover:border-blue-200'
+                                    }`}
+                            >
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-bold text-sm text-gray-800 truncate" title={session.name}>{session.name}</h4>

@@ -1,6 +1,6 @@
 
 import Dexie, { Table } from 'dexie';
-import { LiveStream, InteractiveResource, InteractionTemplate, InteractionCategory, LiveStatus, LiveType } from '../types';
+import { LiveStream, InteractiveResource, InteractionTemplate, InteractionCategory, LiveStatus, LiveType, PrdNote } from '../types';
 
 // --- 1. 丰富的交互资源数据 ---
 const INITIAL_RESOURCES: InteractiveResource[] = [
@@ -64,23 +64,23 @@ const INITIAL_TEMPLATES: InteractionTemplate[] = [
   {
     id: 'IT-001', name: '初中数学开学第一课', labels: ['数学', '开学'], interactionCount: 2, creator: '张老师', modifiedAt: '2024-05-20 14:00',
     items: [
-      { id: 'item-1', resourceId: 'IR-Q01', title: '几何基础有奖问答', type: InteractionCategory.QUIZ, time: '00:10', label: '课前热身', config: INITIAL_RESOURCES[0].config },
-      { id: 'item-2', resourceId: 'IR-DS01', title: '数学在生活中的应用', type: InteractionCategory.DISCUSSION, time: '00:25', label: '发散思维', config: INITIAL_RESOURCES[6].config }
+      { id: 'item-1', resourceId: 'IR-Q01', title: '几何基础有奖问答', type: InteractionCategory.QUIZ, time: '00:10', label: '课前热身', config: INITIAL_RESOURCES[0].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 },
+      { id: 'item-2', resourceId: 'IR-DS01', title: '数学在生活中的应用', type: InteractionCategory.DISCUSSION, time: '00:25', label: '发散思维', config: INITIAL_RESOURCES[6].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 }
     ]
   },
   {
     id: 'IT-002', name: '英语单词特训营', labels: ['英语', '单词', '高频'], interactionCount: 3, creator: '李老师', modifiedAt: '2024-05-22 09:30',
     items: [
-      { id: 'item-e1', resourceId: 'IR-Q02', title: '单词竞速 Round 1', type: InteractionCategory.QUIZ, time: '00:05', label: '热身', config: INITIAL_RESOURCES[1].config },
-      { id: 'item-e2', resourceId: 'IR-Q02', title: '单词竞速 Round 2', type: InteractionCategory.QUIZ, time: '00:15', label: '进阶', config: INITIAL_RESOURCES[1].config },
-      { id: 'item-e3', resourceId: 'IR-OS01', title: '单词一站到底', type: InteractionCategory.ONE_STAND, time: '00:30', label: '决赛', config: INITIAL_RESOURCES[9].config }
+      { id: 'item-e1', resourceId: 'IR-Q02', title: '单词竞速 Round 1', type: InteractionCategory.QUIZ, time: '00:05', label: '热身', config: INITIAL_RESOURCES[1].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 },
+      { id: 'item-e2', resourceId: 'IR-Q02', title: '单词竞速 Round 2', type: InteractionCategory.QUIZ, time: '00:15', label: '进阶', config: INITIAL_RESOURCES[1].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 },
+      { id: 'item-e3', resourceId: 'IR-OS01', title: '单词一站到底', type: InteractionCategory.ONE_STAND, time: '00:30', label: '决赛', config: INITIAL_RESOURCES[9].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 }
     ]
   },
   {
     id: 'IT-003', name: '期末家长会流程', labels: ['班务', '家长会'], interactionCount: 2, creator: '班主任', modifiedAt: '2024-05-28 18:00',
     items: [
-      { id: 'item-p1', resourceId: 'IR-V02', title: '班委满意度投票', type: InteractionCategory.VOTE, time: '00:20', label: '匿名投票', config: INITIAL_RESOURCES[5].config },
-      { id: 'item-p2', resourceId: 'IR-L01', title: '成绩单下载', type: InteractionCategory.LINK, time: '00:45', label: '资料分发', config: INITIAL_RESOURCES[8].config }
+      { id: 'item-p1', resourceId: 'IR-V02', title: '班委满意度投票', type: InteractionCategory.VOTE, time: '00:20', label: '匿名投票', config: INITIAL_RESOURCES[5].config, track: 'OVERLAY', triggerMode: 'MANUAL', duration: 300 },
+      { id: 'item-p2', resourceId: 'IR-L01', title: '成绩单下载', type: InteractionCategory.LINK, time: '00:45', label: '资料分发', config: INITIAL_RESOURCES[8].config, track: 'MAIN', triggerMode: 'MANUAL', duration: 300 }
     ]
   }
 ];
@@ -148,6 +148,7 @@ export class AppDatabase extends Dexie {
   streams!: Table<LiveStream>;
   resources!: Table<InteractiveResource>;
   templates!: Table<InteractionTemplate>;
+  prdNotes!: Table<PrdNote>;
 
   constructor() {
     super('LiveAppDB');
@@ -155,6 +156,14 @@ export class AppDatabase extends Dexie {
       streams: 'id',
       resources: 'id, category', // Index by category if needed
       templates: 'id'
+    });
+
+    // V2: PRD 模式说明表
+    this.version(2).stores({
+      streams: 'id',
+      resources: 'id, category',
+      templates: 'id',
+      prdNotes: 'key, scopeKey, selector, updatedAt'
     });
   }
 }

@@ -1,35 +1,30 @@
-# Use LTS version
+# Stage 1: Build frontend
 FROM node:lts-alpine as build
 
 WORKDIR /app
 
-# Copy package definition files
 COPY package*.json ./
 RUN npm install
 
-# Copy source code and build
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+# Stage 2: Run a single Node server (static + API)
+FROM node:lts-alpine
 
-# Copy built assets
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV HOST=0.0.0.0
+ENV SERVE_STATIC=1
 
-# Nginx config for Cloud Run (Must listen on port 8080)
-RUN echo 'server { \
-    listen 8080; \
-    server_name localhost; \
-    location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy server + built assets
+COPY --from=build /app/dist /app/dist
+COPY --from=build /app/server /app/server
 
-# Modify main nginx.conf to run as non-root (optional but good for security, though not strictly required for port 8080 binding if root)
-# For simplicity, we just expose 8080 which is what Cloud Run expects by default.
+# Ensure data dir exists (for prd-notes.json)
+RUN mkdir -p /app/server/data
+
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server/index.mjs"]

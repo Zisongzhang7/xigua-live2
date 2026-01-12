@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "projects": {
+    "livev2": {
+      "notes": {
+        "LIVE_SETUP:LS-8001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(1) > div > div > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div": {
+          "key": "LIVE_SETUP:LS-8001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(1) > div > div > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div",
+          "scopeKey": "LIVE_SETUP:LS-8001",
+          "selector": "#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(1) > div > div > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div",
+          "content": "仅普通直播有该选项",
+          "createdAt": "2026-01-07T09:40:02.799Z",
+          "updatedAt": "2026-01-07T09:40:02.799Z"
+        },
+        "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(1) > nav > div:nth-of-type(10) > div:nth-of-type(1)": {
+          "key": "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(1) > nav > div:nth-of-type(10) > div:nth-of-type(1)",
+          "scopeKey": "MAIN:ROOM_MANAGEMENT",
+          "selector": "#root > div > div:nth-of-type(3) > div:nth-of-type(1) > nav > div:nth-of-type(10) > div:nth-of-type(1)",
+          "content": "Admin 后台增加一级分类“交互直播”\n\n在后台权限中新增“交互直播类别”",
+          "createdAt": "2026-01-07T10:03:55.231Z",
+          "updatedAt": "2026-01-07T10:05:29.256Z"
+        },
+        "LIVE_SETUP:LS-8001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(5) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > div > div > div:nth-of-type(2) > div > div > div:nth-of-type(2) > div:nth-of-type(1)": {
+          "key": "LIVE_SETUP:LS-8001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(5) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > div > div > div:nth-of-type(2) > div > div > div:nth-of-type(2) > div:nth-of-type(1)",
+          "scopeKey": "LIVE_SETUP:LS-8001",
+          "selector": "#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(5) > div > div:nth-of-type(2) > div:nth-of-type(2) > div > div > div > div:nth-of-type(2) > div > div > div:nth-of-type(2) > div:nth-of-type(1)",
+          "content": "1123123",
+          "createdAt": "2026-01-07T10:09:11.856Z",
+          "updatedAt": "2026-01-07T10:09:11.856Z"
+        },
+        "LIVE_SETUP:LS-9001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)": {
+          "key": "LIVE_SETUP:LS-9001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+          "scopeKey": "LIVE_SETUP:LS-9001",
+          "selector": "#root > div > div:nth-of-type(3) > div > div:nth-of-type(2) > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+          "content": "超级用户  隐身回显",
+          "createdAt": "2026-01-08T03:25:19.850Z",
+          "updatedAt": "2026-01-08T03:25:19.850Z"
+        },
+        "LIVE_SETUP:LS-9001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)": {
+          "key": "LIVE_SETUP:LS-9001::#root > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+          "scopeKey": "LIVE_SETUP:LS-9001",
+          "selector": "#root > div > div:nth-of-type(3) > div > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1)",
+          "content": "只用 IM 消息推送链接  在客户端打开\n\n状态持久化",
+          "createdAt": "2026-01-08T03:39:33.738Z",
+          "updatedAt": "2026-01-08T03:45:41.403Z"
+        },
+        "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > input": {
+          "key": "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > input",
+          "scopeKey": "MAIN:ROOM_MANAGEMENT",
+          "selector": "#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > input",
+          "content": "最多 20 个字符，超限不可输入",
+          "createdAt": "2026-01-12T07:26:52.633Z",
+          "updatedAt": "2026-01-12T07:26:52.633Z"
+        },
+        "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > textarea": {
+          "key": "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > textarea",
+          "scopeKey": "MAIN:ROOM_MANAGEMENT",
+          "selector": "#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > textarea",
+          "content": "最多 100 字符，超限不可输入",
+          "createdAt": "2026-01-12T07:27:04.114Z",
+          "updatedAt": "2026-01-12T07:27:04.114Z"
+        },
+        "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(1) > h3": {
+          "key": "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(1) > h3",
+          "scopeKey": "MAIN:ROOM_MANAGEMENT",
+          "selector": "#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > section:nth-of-type(2) > div:nth-of-type(1) > h3",
+          "content": "直播类型设置成功后后续不可修改",
+          "createdAt": "2026-01-12T07:28:52.585Z",
+          "updatedAt": "2026-01-12T07:28:52.585Z"
+        },
+        "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > span": {
+          "key": "MAIN:ROOM_MANAGEMENT::#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > span",
+          "scopeKey": "MAIN:ROOM_MANAGEMENT",
+          "selector": "#root > div > div:nth-of-type(3) > div:nth-of-type(2) > main > div > div > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > span",
+          "content": "共 3 个状态，可直接在直播间配置，这里的状态会动态变化",
+          "createdAt": "2026-01-12T08:12:40.853Z",
+          "updatedAt": "2026-01-12T08:13:13.186Z"
+        }
+      }
+    }
+  }
+}
