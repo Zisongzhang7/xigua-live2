@@ -3,7 +3,12 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   ChevronLeft,
+  ChevronRight,
+  History,
+  PlayCircle,
+  Upload,
   Maximize2,
+  Minimize2,
   Mic,
   Video,
   Monitor,
@@ -44,7 +49,8 @@ import {
   RefreshCcw,
   StopCircle
 } from 'lucide-react';
-import { LiveStream, LiveType, InteractionCategory, InteractiveResource, InteractionItem, LiveSession } from '../types';
+import { LiveStream, LiveType, InteractionCategory, InteractiveResource, InteractionItem, LiveSession, LiveHistoryItem, PlaybackMethod } from '../types';
+import { HistoryCard, HistoryListModal, PlaybackConfigModal } from './LiveHistoryComponents';
 import { COMMON_LABELS } from '../App';
 import CreateLiveModal from './CreateLiveModal';
 import LiveSessionList from './LiveSessionList';
@@ -125,6 +131,31 @@ interface InteractionState {
 
 const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, resources, onBack, onSaveStream, allLabels }) => {
   const [stream, setStream] = useState<LiveStream>(initialStream);
+
+  // Monitor Fullscreen Logic
+  const monitorCardRef = useRef<HTMLDivElement>(null);
+  const [isMonitorFullscreen, setIsMonitorFullscreen] = useState(false);
+
+  const toggleMonitorFullscreen = () => {
+    if (!document.fullscreenElement) {
+      monitorCardRef.current?.requestFullscreen().catch(err => {
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsMonitorFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   console.log("LiveSetupView mounting", stream);
 
   // Viewport Mode: SETUP | LIVE
@@ -139,6 +170,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [completedMainTrackIds, setCompletedMainTrackIds] = useState<Set<string>>(new Set()); // History of played items
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null); // Selected Session for Start Live
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateFilterName, setTemplateFilterName] = useState('');
+  const [templateFilterTags, setTemplateFilterTags] = useState<string[]>([]);
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [templateFilterCreator, setTemplateFilterCreator] = useState('');
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null); // Track loaded template
   const [currentTemplateName, setCurrentTemplateName] = useState<string | null>(null); // Track loaded template name
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false); // New modal state
@@ -195,6 +230,87 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
   // Fetch templates for the modal using Dexie
   const templates = useLiveQuery(() => db.templates.toArray(), []) || [];
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(t => {
+      const matchName = !templateFilterName || t.name.toLowerCase().includes(templateFilterName.toLowerCase());
+      const matchTags = templateFilterTags.length === 0 || (t.labels && templateFilterTags.every(tag => t.labels.includes(tag)));
+      const matchCreator = !templateFilterCreator || (t.creator && t.creator.toLowerCase().includes(templateFilterCreator.toLowerCase()));
+      return matchName && matchTags && matchCreator;
+    });
+  }, [templates, templateFilterName, templateFilterTags, templateFilterCreator]);
+
+  // MOCK HISTORY replaced with State
+  const [historyList, setHistoryList] = useState<LiveHistoryItem[]>([
+    {
+      id: 'h1',
+      name: '第一场：开幕式',
+      coverUrl: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=200',
+      startTime: '2026-01-10T09:00:00',
+      endTime: '2026-01-10T11:00:00',
+      hostName: '张老师',
+      participantCount: 1205,
+      hasPlayback: true,
+      playbackMethod: 'UPLOAD_JSON',
+      visibleAudience: '高一(3)班, 高一(4)班',
+      className: '高一(3)班',
+      lessonName: '第一课：函数基础',
+      linkedLessonId: 'L001',
+    },
+    {
+      id: 'h2',
+      name: '第二场：专家讲座',
+      coverUrl: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=200',
+      startTime: '2026-01-11T14:00:00',
+      endTime: '2026-01-11T16:00:00',
+      hostName: '李教授',
+      participantCount: 890,
+      hasPlayback: false,
+      visibleAudience: '全校学生',
+      className: '高一(3)班',
+      lessonName: '第二课：函数进阶',
+      linkedLessonId: 'L002',
+    },
+    {
+      id: 'h3',
+      name: '第三场：互动答疑',
+      coverUrl: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=200',
+      startTime: '2026-01-12T19:00:00',
+      endTime: '2026-01-12T20:30:00',
+      hostName: '王老师',
+      participantCount: 560,
+      hasPlayback: false,
+      visibleAudience: '高二(1)班',
+      className: '高一(3)班',
+      lessonName: '第三课：习题讲解',
+      linkedLessonId: 'L003',
+    }
+  ]);
+
+  const [playbackModalConfig, setPlaybackModalConfig] = useState<{ isOpen: boolean; item: LiveHistoryItem | null }>({ isOpen: false, item: null });
+  const [isHistoryListModalOpen, setIsHistoryListModalOpen] = useState(false);
+
+  const handleTogglePlayback = (item: LiveHistoryItem, enable: boolean) => {
+    setHistoryList(prev => prev.map(h =>
+      h.id === item.id ? { ...h, hasPlayback: enable } : h
+    ));
+  };
+
+  const handleConfigurePlayback = (item: LiveHistoryItem) => {
+    setPlaybackModalConfig({ isOpen: true, item });
+  };
+
+  const handlePlaybackConfirm = (method: PlaybackMethod, config?: any) => {
+    if (playbackModalConfig.item) {
+      setHistoryList(prev => prev.map(h =>
+        h.id === playbackModalConfig.item!.id ? { ...h, hasPlayback: true, playbackMethod: method, playbackConfig: config } : h
+      ));
+    }
+  };
+
+  // Sort history by start time descending (latest first)
+  const sortedHistory = [...historyList].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
 
   // Sync interactionsList changes to stream state and persist
   useEffect(() => {
@@ -690,7 +806,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 <span className={`relative inline-flex rounded-full h-3 w-3 ${isTestLive ? 'bg-orange-500' : 'bg-red-500'}`}></span>
               </span>
               <span className={`${isTestLive ? 'text-orange-500' : 'text-red-500'} font-black text-sm uppercase tracking-wider`}>
-                {isTestLive ? 'TEST MODE' : 'On Air'}
+                {isTestLive ? '直播测试' : '直播中'}
               </span>
               <div className="w-px h-4 bg-gray-300 mx-2" />
               <div className="font-mono text-xl font-bold text-gray-800">00:12:45</div>
@@ -859,6 +975,31 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         </div>
                       )}
                     </div>
+
+                    {/* Broadcast History */}
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-2 border-b border-gray-200/50 pb-3 mb-4">
+                        <History size={14} className="text-purple-500" />
+                        开播历史
+                      </h4>
+                      <div className="space-y-3">
+                        {sortedHistory.slice(0, 3).map(item => (
+                          <HistoryCard
+                            key={item.id}
+                            item={item}
+                            liveType={stream.type}
+                            onTogglePlayback={handleTogglePlayback}
+                            onConfigurePlayback={handleConfigurePlayback}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setIsHistoryListModalOpen(true)}
+                        className="w-full mt-3 py-2 text-xs text-gray-500 hover:text-blue-600 font-bold flex items-center justify-center gap-1 transition-colors group"
+                      >
+                        查看更多 <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -869,13 +1010,22 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
           middle={
             <div className="h-full flex flex-col gap-6 overflow-hidden px-2">
               {/* Monitor (Moved Here) */}
-              <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0">
+              <div
+                ref={monitorCardRef}
+                className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0"
+              >
                 <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                   <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
                     <Video size={16} className="text-blue-600" />
                     画面回显
                   </h3>
-                  <button className="p-1.5 hover:bg-gray-100 rounded text-gray-400"><Maximize2 size={14} /></button>
+                  <button
+                    onClick={toggleMonitorFullscreen}
+                    className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                    title={isMonitorFullscreen ? "退出全屏" : "全屏"}
+                  >
+                    {isMonitorFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  </button>
                 </div>
                 <div className="w-full bg-[#0c0c0c] relative flex items-center justify-center group overflow-hidden" style={{ aspectRatio: '16/9' }}>
                   {/* Fallback Cover Image (Background) */}
@@ -976,7 +1126,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     )}
                   </div>
                   <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
-                  <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队" />
+                  <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
                 </div>
               </div>
 
@@ -993,56 +1143,54 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                       </span>
                     )}
                   </h3>
-                  {!isLiveMode && (
-                    <div className="flex gap-1.5 items-center">
+                  <div className="flex gap-1.5 items-center">
+                    <button
+                      onClick={() => setIsTemplateModalOpen(true)}
+                      className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                      title="读取模板"
+                    >
+                      <FolderOpen size={14} />
+                    </button>
+
+                    {currentTemplateId && (
                       <button
-                        onClick={() => setIsTemplateModalOpen(true)}
+                        onClick={handleSaveTemplate}
                         className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                        title="读取模板"
+                        title="保存模板"
                       >
-                        <FolderOpen size={14} />
+                        <Save size={14} />
                       </button>
+                    )}
 
-                      {currentTemplateId && (
-                        <button
-                          onClick={handleSaveTemplate}
-                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                          title="保存模板"
-                        >
-                          <Save size={14} />
-                        </button>
-                      )}
+                    <button
+                      onClick={() => setIsSaveAsModalOpen(true)}
+                      className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                      title="另存为模板"
+                    >
+                      <Copy size={14} />
+                    </button>
 
-                      <button
-                        onClick={() => setIsSaveAsModalOpen(true)}
-                        className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                        title="另存为模板"
-                      >
-                        <Copy size={14} />
-                      </button>
+                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
 
-                      <div className="w-px h-3 bg-gray-200 mx-1"></div>
+                    <button
+                      onClick={() => handleAddInteraction()}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
+                      title="添加交互"
+                    >
+                      <Plus size={14} />
+                      <span className="text-xs font-bold">添加交互</span>
+                    </button>
 
-                      <button
-                        onClick={() => handleAddInteraction()}
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
-                        title="添加交互"
-                      >
-                        <Plus size={14} />
-                        <span className="text-xs font-bold">添加交互</span>
-                      </button>
+                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
 
-                      <div className="w-px h-3 bg-gray-200 mx-1"></div>
-
-                      <button
-                        onClick={handleClearInteractions}
-                        className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                        title="清空"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
+                    <button
+                      onClick={handleClearInteractions}
+                      className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                      title="清空"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                   {/* Show always if I remove the group-hover above, or just wrap in group. Left panel wrapped in group? No. 
                   Let's make them always visible or visible on hover of header. */}
                 </div>
@@ -1240,6 +1388,22 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
       </div >
       {/* Modals ... */}
 
+      <HistoryListModal
+        isOpen={isHistoryListModalOpen}
+        onClose={() => setIsHistoryListModalOpen(false)}
+        history={sortedHistory}
+        liveType={stream.type}
+        onTogglePlayback={handleTogglePlayback}
+        onConfigurePlayback={handleConfigurePlayback}
+      />
+
+      <PlaybackConfigModal
+        isOpen={playbackModalConfig.isOpen}
+        onClose={() => setPlaybackModalConfig({ ...playbackModalConfig, isOpen: false })}
+        liveType={stream.type}
+        onConfirm={handlePlaybackConfirm}
+      />
+
       < CreateLiveModal
         isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}
         onCreate={handleUpdateStream} editStream={stream}
@@ -1329,8 +1493,80 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 </div>
                 <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><X size={24} /></button>
               </div>
+
+              <div className="px-8 py-4 bg-white border-b border-gray-100 flex gap-4 sticky top-0 z-10 items-center">
+                <input
+                  placeholder="搜索模板名称..."
+                  value={templateFilterName}
+                  onChange={e => setTemplateFilterName(e.target.value)}
+                  className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:border-blue-500 outline-none focus:bg-white transition-all"
+                />
+
+                {/* Tag Dropdown */}
+                <div className="relative w-1/4">
+                  <button
+                    onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+                    className={`w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm text-left flex items-center justify-between hover:bg-white hover:border-blue-400 transition-all ${isTagDropdownOpen ? 'ring-2 ring-blue-100 border-blue-400' : ''}`}
+                  >
+                    <span className={`truncate ${templateFilterTags.length ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                      {templateFilterTags.length > 0 ? `已选 ${templateFilterTags.length} 个标签` : '筛选标签...'}
+                    </span>
+                    <ChevronDown size={14} className="text-gray-400" />
+                  </button>
+
+                  {isTagDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsTagDropdownOpen(false)}></div>
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-20 max-h-60 overflow-y-auto">
+                        <div className="flex flex-wrap gap-2">
+                          {allLabels.map(label => (
+                            <button
+                              key={label}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTemplateFilterTags(prev =>
+                                  prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+                                );
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${templateFilterTags.includes(label)
+                                ? 'bg-blue-600 border-blue-600 text-white'
+                                : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-blue-300'
+                                }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                          {allLabels.length === 0 && <span className="text-gray-400 text-xs p-2">无可用标签</span>}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <input
+                  placeholder="筛选创建人..."
+                  value={templateFilterCreator}
+                  onChange={e => setTemplateFilterCreator(e.target.value)}
+                  className="w-1/4 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:border-blue-500 outline-none focus:bg-white transition-all"
+                />
+
+                {/* Clear Button */}
+                {(templateFilterName || templateFilterTags.length > 0 || templateFilterCreator) && (
+                  <button
+                    onClick={() => {
+                      setTemplateFilterName('');
+                      setTemplateFilterTags([]);
+                      setTemplateFilterCreator('');
+                    }}
+                    className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all whitespace-nowrap"
+                  >
+                    清除筛选
+                  </button>
+                )}
+              </div>
+
               <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-min">
-                {templates.map(tpl => (
+                {filteredTemplates.map(tpl => (
                   <div
                     key={tpl.id}
                     className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer group flex flex-col h-fit"
@@ -1349,6 +1585,9 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <span className="font-bold">包含交互:</span> {tpl.interactionCount} 个
                       </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="font-bold">创建人:</span> {tpl.creator || '未知'}
+                      </div>
                       <div className="flex flex-wrap gap-1">
                         {tpl.labels.map(l => <span key={l} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{l}</span>)}
                       </div>
@@ -1364,7 +1603,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     </button>
                   </div>
                 ))}
-                {templates.length === 0 && <div className="col-span-full text-center text-gray-400 py-10">暂无可用模板</div>}
+                {filteredTemplates.length === 0 && <div className="col-span-full text-center text-gray-400 py-10">暂无匹配模板</div>}
               </div>
             </div>
           </div>

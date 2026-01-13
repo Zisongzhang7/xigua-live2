@@ -47,7 +47,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
     [InteractionCategory.QUIZ]: {
       topic: '',
       isSingle: true,
-      options: [{ id: '1', name: '', desc: '', img: null }],
+      options: [{ id: '1', name: '', img: null }],
       correctAnswer: '',
       analysis: '',
       rewardScore: '10',
@@ -76,7 +76,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
       rewardScore: '5',
       wrongReward: '0'
     },
-    [InteractionCategory.MODEL]: { name: '', url: '', jsonConfig: null },
+    [InteractionCategory.MODEL]: { name: '', url: '', jsonConfig: null, sourceType: 'URL' },
     [InteractionCategory.GANDI_EMBED]: { name: '', projectId: '' },
     [InteractionCategory.LINK]: { name: '', url: '' },
     [InteractionCategory.ONE_STAND]: {
@@ -127,7 +127,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
       case InteractionCategory.VOTE:
         return !!(data.name.trim() && data.options.length > 0 && data.options.every((opt: any) => opt.name.trim()));
       case InteractionCategory.MODEL:
-        return !!(data.name.trim() && data.url.trim());
+        return !!(data.name.trim() && (data.sourceType === 'JSON' || data.url.trim()));
       case InteractionCategory.GANDI_EMBED:
         return !!(data.name.trim() && data.projectId.trim());
       case InteractionCategory.LINK:
@@ -209,10 +209,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
             <FormSection title="题目配置" icon={<HelpCircle size={18} />}>
               <div className="grid grid-cols-1 gap-6">
                 <InputField label="题目名称" value={data.topic} onChange={(e) => updateField(InteractionCategory.QUIZ, 'topic', e.target.value)} />
-                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                  <span className="text-sm font-bold text-gray-700">是否单选</span>
-                  <Toggle active={data.isSingle} onClick={() => updateField(InteractionCategory.QUIZ, 'isSingle', !data.isSingle)} />
-                </div>
+
               </div>
             </FormSection>
 
@@ -223,15 +220,10 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                     <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
                       {idx + 1}#
                     </div>
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex-1 grid grid-cols-1 gap-4">
                       <InputField label="选项名称" value={opt.name} onChange={(e) => {
                         const next = [...data.options];
                         next[idx].name = e.target.value;
-                        updateField(InteractionCategory.QUIZ, 'options', next);
-                      }} />
-                      <InputField label="描述" value={opt.desc} onChange={(e) => {
-                        const next = [...data.options];
-                        next[idx].desc = e.target.value;
                         updateField(InteractionCategory.QUIZ, 'options', next);
                       }} />
                     </div>
@@ -246,7 +238,7 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
                     }} className="p-2 text-gray-300 hover:text-red-500 self-start md:self-center"><Trash2 size={18} /></button>
                   </div>
                 ))}
-                <button onClick={() => updateField(InteractionCategory.QUIZ, 'options', [...data.options, { id: Date.now().toString(), name: '', desc: '', img: null }])} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2 font-black text-xs">
+                <button onClick={() => updateField(InteractionCategory.QUIZ, 'options', [...data.options, { id: Date.now().toString(), name: '', img: null }])} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2 font-black text-xs">
                   <Plus size={16} /> 添加选项
                 </button>
               </div>
@@ -375,8 +367,30 @@ const CreateInteractiveResourceView: React.FC<CreateInteractiveResourceViewProps
             <FormSection title="3D模型配置" icon={<Box size={18} />}>
               <div className="grid grid-cols-1 gap-6">
                 <InputField label="模型名称" value={data.name} onChange={(e) => updateField(InteractionCategory.MODEL, 'name', e.target.value)} />
-                <InputField label="模型地址" placeholder="https://..." value={data.url} onChange={(e) => updateField(InteractionCategory.MODEL, 'url', e.target.value)} />
-                <FileUploadField label="模型视角 JSON 上传" icon={<FileJson size={20} />} sub="请上传 .json 视角配置文件" />
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">配置方式</label>
+                  <div className="flex bg-gray-50 p-1 rounded-xl w-fit border border-gray-100">
+                    <button
+                      onClick={() => updateField(InteractionCategory.MODEL, 'sourceType', 'URL')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${data.sourceType === 'URL' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      URL 地址
+                    </button>
+                    <button
+                      onClick={() => updateField(InteractionCategory.MODEL, 'sourceType', 'JSON')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${data.sourceType === 'JSON' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      JSON 文件
+                    </button>
+                  </div>
+                </div>
+
+                {data.sourceType === 'URL' ? (
+                  <InputField label="模型地址" placeholder="https://..." value={data.url} onChange={(e) => updateField(InteractionCategory.MODEL, 'url', e.target.value)} />
+                ) : (
+                  <FileUploadField label="模型视角 JSON 上传" icon={<FileJson size={20} />} sub="请上传 .json 视角配置文件" />
+                )}
               </div>
             </FormSection>
           </div>

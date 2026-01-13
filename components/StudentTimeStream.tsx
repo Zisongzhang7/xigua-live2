@@ -17,6 +17,7 @@ import {
     PlayCircle, // For Slice Enter
     Award // For Slice Complete
 } from 'lucide-react';
+import StudentDataList from './StudentDataList';
 
 // Enhanced Event Types based on User Mind Map
 type EventType =
@@ -99,6 +100,7 @@ const INITIAL_EVENTS: StudentEvent[] = Array.from({ length: 10 }).map(() => gene
 
 const StudentTimeStream: React.FC = () => {
     const [events, setEvents] = useState<StudentEvent[]>(INITIAL_EVENTS);
+    const [activeTab, setActiveTab] = useState<'STREAM' | 'DATA'>('STREAM');
 
     // Filters
     const [filterType, setFilterType] = useState<EventType | 'ALL'>('ALL');
@@ -180,129 +182,156 @@ const StudentTimeStream: React.FC = () => {
                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">当前在线</div>
                     <div className="text-2xl font-black text-gray-900 flex items-baseline gap-1">
                         342
-                        <span className="text-[10px] font-bold text-green-500 bg-green-50 px-1.5 py-0.5 rounded-full">+12%</span>
+
                     </div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-purple-100 shadow-sm relative overflow-hidden group">
                     <div className="absolute right-2 top-2 p-1.5 bg-purple-50 rounded-lg text-purple-500 group-hover:scale-110 transition-transform">
                         <Clock size={16} />
                     </div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">累计观看</div>
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">本场累计人数</div>
                     <div className="text-2xl font-black text-gray-900 flex items-baseline gap-1">
                         1,205
                     </div>
                 </div>
             </div>
 
-            {/* Header & Filter Bar */}
-            <div className="p-3 border-b border-gray-100 bg-white space-y-3 flex-shrink-0 z-10">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                        <Clock size={16} className="text-blue-600" />
+            {/* Tabs */}
+            <div className="flex items-center border-b border-gray-100 bg-white shrink-0">
+                <button
+                    onClick={() => setActiveTab('STREAM')}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'STREAM' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                >
+                    <div className="flex items-center justify-center gap-2">
+                        <Clock size={14} className={activeTab === 'STREAM' ? "text-blue-600" : "text-gray-400"} />
                         动态流
-                    </h3>
-                    <span className="text-[10px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full animate-pulse flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> 接收中
-                    </span>
-                </div>
-
-                {/* Filter Controls */}
-                <div className="flex gap-2 text-xs">
-                    {/* Event Type Filter */}
-                    <div className="relative flex-1 min-w-[100px]">
-                        <select
-                            className="w-full pl-7 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value as EventType | 'ALL')}
-                        >
-                            <option value="ALL">所有事件</option>
-                            <option value="DANMAKU">弹幕发言</option>
-                            <option value="ANSWER_SELECT">答题选择</option>
-                            <option value="VOTE">投票</option>
-                            <option value="DEBATE">辩论</option>
-                            <option value="GANDI">Gandi/外链</option>
-                            <option value="SLICE_ENTER">进入切片</option>
-                            <option value="SLICE_COMPLETE">完成切片</option>
-                            <option value="LIVE_ENTER">进入直播</option>
-                            <option value="LIVE_EXIT">退出直播</option>
-                        </select>
-                        <Filter size={12} className="absolute left-2 top-1.5 text-gray-400 pointer-events-none" />
                     </div>
-
-                    {/* Team Filter */}
-                    <div className="relative w-24">
-                        <select
-                            className="w-full pl-2 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
-                            value={filterTeam}
-                            onChange={(e) => setFilterTeam(e.target.value)}
-                        >
-                            <option value="ALL">所有战队</option>
-                            {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                    {activeTab === 'STREAM' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
+                </button>
+                <div className="w-px h-4 bg-gray-100"></div>
+                <button
+                    onClick={() => setActiveTab('DATA')}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'DATA' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                >
+                    <div className="flex items-center justify-center gap-2">
+                        <Users size={14} className={activeTab === 'DATA' ? "text-blue-600" : "text-gray-400"} />
+                        用户数据
                     </div>
-                </div>
-
-                {/* Search Input */}
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="搜索姓名或学号..."
-                        className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500 transition-colors"
-                        value={filterStudentId}
-                        onChange={(e) => setFilterStudentId(e.target.value)}
-                    />
-                    <Search size={12} className="absolute left-2.5 top-2 text-gray-400" />
-                </div>
+                    {activeTab === 'DATA' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
+                </button>
             </div>
 
-            {/* Event List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative">
-                {filteredEvents.length === 0 ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                        <Filter size={24} className="mb-2 opacity-20" />
-                        <p className="text-xs">没有符合条件的动态</p>
-                    </div>
-                ) : (
-                    filteredEvents.map(event => (
-                        <div key={event.id} className="group flex gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200 animate-in slide-in-from-left-2 fade-in">
-                            {/* Avatar & Icon */}
-                            <div className="flex-shrink-0 relative">
-                                <img src={event.avatar} alt={event.studentName} className="w-9 h-9 rounded-full bg-gray-100 border-2 border-white shadow-sm" />
-                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-50">
-                                    {getEventIcon(event.type)}
-                                </div>
+            {activeTab === 'STREAM' ? (
+                <>
+                    {/* Header & Filter Bar */}
+                    <div className="p-3 border-b border-gray-100 bg-white space-y-3 flex-shrink-0 z-10">
+                        <div className="flex justify-end items-center">
+                            <span className="text-[10px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full animate-pulse flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> 接收中
+                            </span>
+                        </div>
+
+                        {/* Filter Controls */}
+                        <div className="flex gap-2 text-xs">
+                            {/* Event Type Filter */}
+                            <div className="relative flex-1 min-w-[100px]">
+                                <select
+                                    className="w-full pl-7 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value as EventType | 'ALL')}
+                                >
+                                    <option value="ALL">所有事件</option>
+                                    <option value="DANMAKU">弹幕发言</option>
+                                    <option value="ANSWER_SELECT">答题选择</option>
+                                    <option value="VOTE">投票</option>
+                                    <option value="DEBATE">辩论</option>
+                                    <option value="GANDI">Gandi/外链</option>
+                                    <option value="SLICE_ENTER">进入切片</option>
+                                    <option value="SLICE_COMPLETE">完成切片</option>
+                                    <option value="LIVE_ENTER">进入直播</option>
+                                    <option value="LIVE_EXIT">退出直播</option>
+                                </select>
+                                <Filter size={12} className="absolute left-2 top-1.5 text-gray-400 pointer-events-none" />
                             </div>
 
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-0.5">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-xs font-bold text-gray-900">{event.studentName}</span>
-                                            <span className="text-[9px] font-mono text-gray-400 bg-gray-50 px-1 rounded">{event.studentId}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                            <span className="text-[9px] font-bold text-gray-500">{event.teamName}</span>
-                                        </div>
-                                    </div>
-                                    <span className="text-[10px] font-mono text-gray-400 shrink-0">{event.time}</span>
-                                </div>
-
-                                <div className="mt-1.5 flex items-start gap-2">
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getEventTypeColor(event.type)}`}>
-                                        {getEventDescription(event.type)}
-                                    </span>
-                                    {event.content && (
-                                        <p className="text-xs text-gray-700 leading-snug break-all font-medium">
-                                            {event.content}
-                                        </p>
-                                    )}
-                                </div>
+                            {/* Team Filter */}
+                            <div className="relative w-24">
+                                <select
+                                    className="w-full pl-2 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
+                                    value={filterTeam}
+                                    onChange={(e) => setFilterTeam(e.target.value)}
+                                >
+                                    <option value="ALL">所有战队</option>
+                                    {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
+
+                        {/* Search Input */}
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="搜索姓名或学号..."
+                                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500 transition-colors"
+                                value={filterStudentId}
+                                onChange={(e) => setFilterStudentId(e.target.value)}
+                            />
+                            <Search size={12} className="absolute left-2.5 top-2 text-gray-400" />
+                        </div>
+                    </div>
+
+                    {/* Event List */}
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative">
+                        {filteredEvents.length === 0 ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                                <Filter size={24} className="mb-2 opacity-20" />
+                                <p className="text-xs">没有符合条件的动态</p>
+                            </div>
+                        ) : (
+                            filteredEvents.map(event => (
+                                <div key={event.id} className="group flex gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200 animate-in slide-in-from-left-2 fade-in">
+                                    {/* Avatar & Icon */}
+                                    <div className="flex-shrink-0 relative">
+                                        <img src={event.avatar} alt={event.studentName} className="w-9 h-9 rounded-full bg-gray-100 border-2 border-white shadow-sm" />
+                                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-50">
+                                            {getEventIcon(event.type)}
+                                        </div>
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start mb-0.5">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold text-gray-900">{event.studentName}</span>
+                                                    <span className="text-[9px] font-mono text-gray-400 bg-gray-50 px-1 rounded">{event.studentId}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <span className="text-[9px] font-bold text-gray-500">{event.teamName}</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] font-mono text-gray-400 shrink-0">{event.time}</span>
+                                        </div>
+
+                                        <div className="mt-1.5 flex items-start gap-2">
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getEventTypeColor(event.type)}`}>
+                                                {getEventDescription(event.type)}
+                                            </span>
+                                            {event.content && (
+                                                <p className="text-xs text-gray-700 leading-snug break-all font-medium">
+                                                    {event.content}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </>
+            ) : (
+                <StudentDataList />
+            )}
         </div>
     );
 };

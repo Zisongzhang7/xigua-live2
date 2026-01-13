@@ -221,7 +221,7 @@ const EditInteractionTemplateView: React.FC<EditInteractionTemplateViewProps> = 
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="请输入用于快速识别的模板名称..."
+                  placeholder="内部识别名称"
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 text-sm font-bold text-gray-900 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-sm"
                 />
               </div>

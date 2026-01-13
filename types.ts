@@ -50,6 +50,26 @@ export interface LiveSession {
   hostName: string;
   coverUrl?: string;
   startTime: string; // ISO string
+  
+  // Extended fields for consolidated configuration
+  linkedLessonId?: string; // For Course Live
+  linkedLessonName?: string; // For Course Live (Display)
+  visibleAudience?: string[]; // For Normal Live (List of strings for simplicity or IDs)
+  audienceMode?: 'CLASS' | 'COURSE' | 'USER_TYPE' | 'ID'; // Store the mode
+}
+
+export type PlaybackMethod = 'RECORDED_LESSON' | 'UPLOAD_JSON';
+
+export interface LiveHistoryItem extends LiveSession {
+  endTime?: string;
+  participantCount?: number;
+  visibleAudience?: string; // For Normal Live
+  className?: string; // For Course Live
+  lessonName?: string; // For Course Live
+  linkedLessonId?: string; // For Course Live
+  hasPlayback: boolean;
+  playbackMethod?: PlaybackMethod;
+  playbackConfig?: any;
 }
 
 export interface LiveStream {

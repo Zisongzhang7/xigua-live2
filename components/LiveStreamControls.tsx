@@ -429,7 +429,10 @@ export const ObsControlPanel: React.FC = () => {
                                         <Layout size={24} />
                                     </div>
                                     <h3 className="text-lg font-black text-gray-900">OBS 连接设置</h3>
-                                    <p className="text-xs text-gray-400 mt-1">请输入 OBS WebSocket 服务信息进行连接</p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        请输入 OBS WebSocket 服务信息进行连接
+                                        <a href="#" className="text-blue-600 hover:text-blue-700 ml-1 hover:underline">查看教程</a>
+                                    </p>
                                 </div>
 
                                 <div className="space-y-4">
@@ -465,7 +468,7 @@ export const ObsControlPanel: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 pl-[76px] mt-2">
+                                <div className="flex items-center justify-center mt-4">
                                     <button
                                         onClick={handleConnect}
                                         disabled={isConnecting}
@@ -480,7 +483,6 @@ export const ObsControlPanel: React.FC = () => {
                                             '连接 OBS'
                                         )}
                                     </button>
-                                    {!isConnecting && <span className="text-xs font-bold text-red-100 bg-red-500/10 px-2 py-1 rounded text-red-500">未连接</span>}
                                 </div>
                             </div>
                         </div>
