@@ -53,7 +53,7 @@ export const TagItem: React.FC<{ label: string; onRemove: () => void }> = ({ lab
 export const ModeTab: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
     <button
         onClick={onClick}
-        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${active
+        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all w-full ${active
             ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5'
             : 'text-gray-500 hover:bg-gray-200/50'
             }`}

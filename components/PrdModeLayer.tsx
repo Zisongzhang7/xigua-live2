@@ -442,42 +442,55 @@ const PrdModeLayer: React.FC<PrdModeLayerProps> = ({ enabled, scopeKey }) => {
   // PRD 模式：对已标注元素做可视化高亮（outline，不影响布局）
   useEffect(() => {
     if (!enabled) return;
-    const touched = new Set<Element>();
 
-    const apply = () => {
-      // 清理之前的 touched
-      touched.forEach((el) => {
-        try {
-          el.removeAttribute('data-prd-noted');
-        } catch { }
-      });
-      touched.clear();
+    const updateHighlights = () => {
+      // 1. Identify all elements that SHOULD be highlighted
+      const newActiveMap = new Map<Element, string>(); // element -> selector
 
       notes.forEach((n) => {
         try {
+          // Use querySelectorAll to be safe, but usually just one
           const el = document.querySelector(n.selector);
           if (el && !isIgnoredTarget(el)) {
-            el.setAttribute('data-prd-noted', 'true');
-            touched.add(el);
+            newActiveMap.set(el, n.selector);
           }
-        } catch {
-          // selector 可能因 DOM 变化而失效，忽略
+        } catch { }
+      });
+
+      // 2. Remove highlight from elements that are no longer active
+      document.querySelectorAll('[data-prd-noted="true"]').forEach((el) => {
+        if (!newActiveMap.has(el)) {
+          el.removeAttribute('data-prd-noted');
+          el.removeAttribute('data-prd-selector');
+        }
+      });
+
+      // 3. Add highlight to new active elements
+      newActiveMap.forEach((selector, el) => {
+        if (el.getAttribute('data-prd-noted') !== 'true') {
+          el.setAttribute('data-prd-noted', 'true');
+          el.setAttribute('data-prd-selector', selector);
+        } else {
+          // Update selector if changed
+          if (el.getAttribute('data-prd-selector') !== selector) {
+            el.setAttribute('data-prd-selector', selector);
+          }
         }
       });
     };
 
-    apply();
+    updateHighlights();
     // 增加轮询检查，以应对 DOM 延迟加载或动态变化
-    const timer = window.setInterval(apply, 1000); 
+    const timer = window.setInterval(updateHighlights, 500);
 
     return () => {
       window.clearInterval(timer);
-      touched.forEach((el) => {
+      document.querySelectorAll('[data-prd-noted="true"]').forEach((el) => {
         try {
           el.removeAttribute('data-prd-noted');
+          el.removeAttribute('data-prd-selector');
         } catch { }
       });
-      touched.clear();
     };
   }, [enabled, notes, scopeKey]);
 
@@ -486,6 +499,13 @@ const PrdModeLayer: React.FC<PrdModeLayerProps> = ({ enabled, scopeKey }) => {
     if (!enabled) {
       setTooltip(null);
       return;
+    }
+
+    // 每次依赖更新（tooltip 变化）导致 effect 重启时，立即恢复高亮状态
+    // 防止 cleanup 清除了高亮但下一次 mousemove 还没触发导致的闪烁/消失
+    if (tooltip?.selector) {
+      const el = document.querySelector(tooltip.selector);
+      if (el) el.setAttribute('data-prd-noted-hover', 'true');
     }
 
     let hideTimer: number | null = null;
@@ -508,69 +528,41 @@ const PrdModeLayer: React.FC<PrdModeLayerProps> = ({ enabled, scopeKey }) => {
           return;
         }
 
-        // 如果是已被标记的元素，强制保持高亮（通过 CSS data-prd-noted-hover 控制，这里我们用tooltip状态反推）
-        // 实际上我们并不需要反推，data-prd-noted 本身就会一直有样式
-        // 但是用户说 "我鼠标每次 hover 标注后，红框就会消失"，这可能是因为 elementFromPoint 拿到了 tooltip 本身或者其他层
-        // 导致逻辑认为离开了目标元素。但我们上面的 isInsidePrdPopup 处理了 tooltip。
-        // 可能用户指的是 tooltip 出现后，原来的元素框框没了？
-        // 如果 tooltip 出现，它并不影响元素本身的 data-prd-noted 属性。
-        // 除非我们的高亮样式依赖 :hover 伪类，而 tooltip 遮挡了鼠标导致 hover 态丢失。
-        // -> 我们在 CSS 中加了 [data-prd-noted-hover="true"] 来手动控制高亮态。
+        // 查找最近的已标注祖先元素（利用 data-prd-noted 属性）
+        const notedEl = el?.closest('[data-prd-noted="true"]');
 
-        if (!el || isIgnoredTarget(el)) {
-          lastHoverElRef.current = null;
-          // 离开热区，延迟关闭
-          if (tooltip && !hideTimer) {
-             hideTimer = window.setTimeout(() => {
-               setTooltip(null);
-               // 清理手动高亮
-               document.querySelectorAll('[data-prd-noted-hover]').forEach(e => e.removeAttribute('data-prd-noted-hover'));
-               hideTimer = null;
-             }, 500);
-          }
-          return;
-        }
+        if (notedEl) {
+          const sel = notedEl.getAttribute('data-prd-selector');
+          const note = sel ? noteBySelector.get(sel) : null;
 
-        // 如果我们移到了一个新的元素，或者还在当前元素内部
-        // 1. 清除旧的 timer
-        if (hideTimer) {
-          window.clearTimeout(hideTimer);
-          hideTimer = null;
-        }
-
-        if (el === lastHoverElRef.current) return;
-        lastHoverElRef.current = el;
-
-        // 从当前元素向上找第一个有说明的祖先
-        let cur: Element | null = el;
-        let foundNote = false;
-        while (cur && cur !== document.body && !isIgnoredTarget(cur)) {
-          const sel = getUniqueSelector(cur);
-          const note = noteBySelector.get(sel);
           if (note) {
-            // 找到了！
-            foundNote = true;
+            // 找到了！清除隐藏定时器
+            if (hideTimer) {
+              window.clearTimeout(hideTimer);
+              hideTimer = null;
+            }
+
             // 如果已经是当前显示的 tooltip，就不重新设置（避免闪烁）
             if (tooltip?.selector !== sel) {
-              setTooltip({ selector: sel, note, anchorRect: (cur as HTMLElement).getBoundingClientRect() });
+              setTooltip({ selector: sel!, note, anchorRect: notedEl.getBoundingClientRect() });
               // 添加手动高亮类，防止 tooltip 遮挡导致 hover 丢失
               document.querySelectorAll('[data-prd-noted-hover]').forEach(e => e.removeAttribute('data-prd-noted-hover'));
-              cur.setAttribute('data-prd-noted-hover', 'true');
+              notedEl.setAttribute('data-prd-noted-hover', 'true');
             }
-            break;
+            // 更新 lastHoverElRef
+            lastHoverElRef.current = notedEl;
+            return;
           }
-          cur = cur.parentElement;
         }
 
-        // 如果当前路径上没找到 note，且当前有 tooltip 显示中，则启动延迟关闭
-        if (!foundNote && tooltip) {
-           if (!hideTimer) {
-             hideTimer = window.setTimeout(() => {
-               setTooltip(null);
-               document.querySelectorAll('[data-prd-noted-hover]').forEach(e => e.removeAttribute('data-prd-noted-hover'));
-               hideTimer = null;
-             }, 500);
-           }
+        // 如果没有找到 noted 元素，且当前有 tooltip，则启动延迟关闭
+        if (tooltip && !hideTimer) {
+           hideTimer = window.setTimeout(() => {
+             setTooltip(null);
+             // 清理手动高亮
+             document.querySelectorAll('[data-prd-noted-hover]').forEach(e => e.removeAttribute('data-prd-noted-hover'));
+             hideTimer = null;
+           }, 300);
         }
       });
     };
@@ -814,5 +806,3 @@ const PrdModeLayer: React.FC<PrdModeLayerProps> = ({ enabled, scopeKey }) => {
 };
 
 export default PrdModeLayer;
-
-

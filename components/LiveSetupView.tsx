@@ -47,11 +47,13 @@ import {
   RotateCcw,
   FileStack,
   RefreshCcw,
-  StopCircle
+  StopCircle,
+  Calendar
 } from 'lucide-react';
 import { LiveStream, LiveType, InteractionCategory, InteractiveResource, InteractionItem, LiveSession, LiveHistoryItem, PlaybackMethod } from '../types';
 import { HistoryCard, HistoryListModal, PlaybackConfigModal } from './LiveHistoryComponents';
 import { COMMON_LABELS } from '../App';
+import LiveSessionModal from './LiveSessionModal';
 import CreateLiveModal from './CreateLiveModal';
 import LiveSessionList from './LiveSessionList';
 import StudentTimeStream from './StudentTimeStream';
@@ -241,51 +243,21 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   }, [templates, templateFilterName, templateFilterTags, templateFilterCreator]);
 
   // MOCK HISTORY replaced with State
-  const [historyList, setHistoryList] = useState<LiveHistoryItem[]>([
-    {
-      id: 'h1',
-      name: '第一场：开幕式',
-      coverUrl: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=200',
-      startTime: '2026-01-10T09:00:00',
-      endTime: '2026-01-10T11:00:00',
-      hostName: '张老师',
-      participantCount: 1205,
-      hasPlayback: true,
-      playbackMethod: 'UPLOAD_JSON',
-      visibleAudience: '高一(3)班, 高一(4)班',
-      className: '高一(3)班',
-      lessonName: '第一课：函数基础',
-      linkedLessonId: 'L001',
-    },
-    {
-      id: 'h2',
-      name: '第二场：专家讲座',
-      coverUrl: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=200',
-      startTime: '2026-01-11T14:00:00',
-      endTime: '2026-01-11T16:00:00',
-      hostName: '李教授',
-      participantCount: 890,
-      hasPlayback: false,
-      visibleAudience: '全校学生',
-      className: '高一(3)班',
-      lessonName: '第二课：函数进阶',
-      linkedLessonId: 'L002',
-    },
-    {
-      id: 'h3',
-      name: '第三场：互动答疑',
-      coverUrl: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=200',
-      startTime: '2026-01-12T19:00:00',
-      endTime: '2026-01-12T20:30:00',
-      hostName: '王老师',
-      participantCount: 560,
-      hasPlayback: false,
-      visibleAudience: '高二(1)班',
-      className: '高一(3)班',
-      lessonName: '第三课：习题讲解',
-      linkedLessonId: 'L003',
-    }
-  ]);
+  const [historyList, setHistoryList] = useState<LiveHistoryItem[]>(Array.from({ length: 15 }).map((_, i) => ({
+    id: `h${i + 1}`,
+    name: `第${15 - i}场：${['开幕式', '专家讲座', '互动答疑', '期末复习', '考前冲刺'][i % 5]}`,
+    coverUrl: `https://images.unsplash.com/photo-${['1544531586-fde5298cdd40', '1517486808906-6ca8b3f04846', '1524178232363-1fb2b075b655'][i % 3]}?q=80&w=200`,
+    startTime: new Date(Date.now() - (i + 1) * 86400000).toISOString(), // Past dates
+    endTime: new Date(Date.now() - (i + 1) * 86400000 + 7200000).toISOString(),
+    hostName: ['张老师', '李教授', '王老师'][i % 3],
+    participantCount: 500 + i * 50,
+    hasPlayback: i % 2 === 0,
+    playbackMethod: i % 2 === 0 ? 'UPLOAD_JSON' : undefined,
+    visibleAudience: '高一(3)班, 高一(4)班',
+    className: '高一(3)班',
+    lessonName: `第${15 - i}课：函数基础`,
+    linkedLessonId: `L00${i + 1}`,
+  })));
 
   const [playbackModalConfig, setPlaybackModalConfig] = useState<{ isOpen: boolean; item: LiveHistoryItem | null }>({ isOpen: false, item: null });
   const [isHistoryListModalOpen, setIsHistoryListModalOpen] = useState(false);
@@ -766,17 +738,47 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   };
 
   const startLiveValidation = useMemo(() => {
+    // 1. Must select a session
+    if (!selectedSessionId) return { valid: false, msg: '未选择直播场次' };
+
+    const session = stream.sessions?.find(s => s.id === selectedSessionId);
+    if (!session) return { valid: false, msg: '选择的场次无效' };
+
+    // 2. Session Data Validation based on Type
     if (stream.type === LiveType.ORDINARY) {
-      if (!selectedSessionId) return { valid: false, msg: '未选择直播场次' };
-      const hasAudience = selectedItems[audienceMode] && selectedItems[audienceMode].length > 0;
-      if (!hasAudience) return { valid: false, msg: '未配置可见人群' };
+      if (!session.visibleAudience || session.visibleAudience.length === 0) {
+        return { valid: false, msg: '该场次未配置可见人群' };
+      }
     } else {
       // COURSE
-      const hasClass = selectedItems.CLASS && selectedItems.CLASS.length > 0;
-      if (!hasClass) return { valid: false, msg: '未配置关联课节' };
+      if (!session.linkedLessonId) {
+        return { valid: false, msg: '该场次未关联课节' };
+      }
     }
+
     return { valid: true, msg: '' };
-  }, [stream.type, selectedSessionId, selectedItems, audienceMode]);
+  }, [stream.type, selectedSessionId, stream.sessions]);
+
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
+
+  // Session Modal State
+  const [sessionModalConfig, setSessionModalConfig] = useState<{ isOpen: boolean; isEditing: boolean; data?: Partial<LiveSession> }>({ isOpen: false, isEditing: false });
+
+  const handleOpenAddSession = () => {
+    setSessionModalConfig({ isOpen: true, isEditing: false, data: undefined });
+  };
+
+  const handleOpenEditSession = (session: LiveSession) => {
+    setSessionModalConfig({ isOpen: true, isEditing: true, data: session });
+  };
+
+  const handleSaveSessionModal = (sessionData: Partial<LiveSession>) => {
+    if (sessionModalConfig.isEditing && sessionModalConfig.data?.id) {
+      handleUpdateSession(sessionModalConfig.data.id, sessionData);
+    } else {
+      handleAddSession(sessionData as Omit<LiveSession, 'id'>);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F0F2F5]">
@@ -884,124 +886,108 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                   <StudentTimeStream />
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-1 overflow-hidden">
+                <>
+                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-none overflow-hidden">
 
-                  <div className="flex-none px-6 pt-6">
-                    <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                        <Info size={16} className="text-blue-600" />
-                        直播间基础信息
-                      </h3>
-                      <button onClick={() => setIsEditModalOpen(true)} className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">编辑信息</button>
+                    <div className="flex-none px-6 pt-6">
+                      <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                        <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                          <Info size={16} className="text-blue-600" />
+                          直播间基础信息
+                        </h3>
+                        <button onClick={() => setIsEditModalOpen(true)} className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">编辑信息</button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-y-auto custom-scrollbar px-6 py-6 space-y-6">
+                      <div className="space-y-4 pl-1">
+                        <InfoItem label="直播名称" content={stream.name} />
+                        <InfoItem label="直播描述" content={stream.description} />
+                        <InfoItem label="直播类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 space-y-6">
-                    <div className="space-y-4 pl-1">
-                      <InfoItem label="直播名称" content={stream.name} />
-                      <InfoItem label="直播描述" content={stream.description} />
-                      <InfoItem label="直播类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
+                  {/* Live Session List Container (Consolidated for Both Types) */}
+                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-1 overflow-hidden">
+                    {/* Title Header */}
+                    <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-white">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-blue-600" />
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide">直播场次设置</h3>
+                      </div>
                     </div>
 
-                    {/* Live Session List (Only for Normal Live) */}
-                    {stream.type !== LiveType.COURSE && (
-                      <LiveSessionList
-                        sessions={stream.sessions || []}
-                        onAddSession={handleAddSession}
-                        onDeleteSession={handleDeleteSession}
-                        onUpdateSession={handleUpdateSession}
-                        selectedSessionId={selectedSessionId}
-                        onSelectSession={setSelectedSessionId}
-                      />
-                    )}
+                    {/* Tab Content Area */}
+                    <div className="p-6 bg-gray-50/50 flex-1 overflow-hidden flex flex-col">
+                      {/* Tabs & Action */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex p-1 bg-gray-200/50 rounded-lg">
+                          <button
+                            onClick={() => { setActiveTab('upcoming'); }}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                          >
+                            未播场次 ({stream.sessions?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('history')}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                          >
+                            历史开播 ({historyList.length})
+                          </button>
+                        </div>
 
-                    {/* Audience Logic */}
-                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-2 border-b border-gray-200/50 pb-3 mb-4">
-                        <Users size={14} className="text-blue-500" />
-                        {stream.type === LiveType.COURSE ? '关联直播课节' : '可见人群'}
-                      </h4>
+                        {activeTab === 'upcoming' && (
+                          <button
+                            onClick={handleOpenAddSession}
+                            className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 flex items-center gap-1 hover:bg-blue-100 transition-colors"
+                          >
+                            <Plus size={12} /> 新增场次
+                          </button>
+                        )}
+                      </div>
 
-                      {stream.type === LiveType.COURSE ? (
-                        <div className="space-y-4">
-                          <CascadingSearchSelector
-                            onSelect={(c, l) => addItem('CLASS', `${c} - ${l}`)}
+                      {activeTab === 'upcoming' ? (
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          <LiveSessionList
+                            sessions={stream.sessions || []}
+                            liveType={stream.type}
+                            onDeleteSession={handleDeleteSession}
+                            onUpdateSession={handleUpdateSession}
+                            selectedSessionId={selectedSessionId}
+                            onSelectSession={setSelectedSessionId}
+                            onEditSession={handleOpenEditSession}
                           />
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedItems.CLASS.length > 0 ? selectedItems.CLASS.map(item => (
-                              <TagItem key={item} label={item} onRemove={() => removeItem('CLASS', item)} />
-                            )) : <p className="text-[10px] text-gray-400 italic">尚未选择关联课节</p>}
-                          </div>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-gray-200/50 rounded-xl mb-4">
-                            <ModeTab active={audienceMode === 'CLASS'} onClick={() => setAudienceMode('CLASS')} icon={<GraduationCap size={14} />} label="按班级" />
-                            <ModeTab active={audienceMode === 'COURSE'} onClick={() => setAudienceMode('COURSE')} icon={<BookOpen size={14} />} label="按课程" />
-                            <ModeTab active={audienceMode === 'USER_TYPE'} onClick={() => setAudienceMode('USER_TYPE')} icon={<UserCircle size={14} />} label="按类型" />
-                            <ModeTab active={audienceMode === 'ID'} onClick={() => setAudienceMode('ID')} icon={<Hash size={14} />} label="按学号" />
-                          </div>
-
-                          <div className="min-h-[100px] flex flex-col gap-3">
-                            {audienceMode === 'ID' ? (
-                              <div className="space-y-3">
-                                <textarea
-                                  placeholder="请输入学号，多个学号用逗号或换行分隔"
-                                  className="w-full bg-white border border-gray-200 rounded-xl p-3 text-xs outline-none focus:border-blue-500 h-24"
-                                />
-                                <div className="flex items-center justify-between">
-                                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100">
-                                    <FileSpreadsheet size={14} /> 上传 Excel
-                                  </button>
-                                  <button className="flex items-center gap-1 text-[10px] text-gray-400 font-bold hover:text-blue-500 transition-colors">
-                                    <Download size={12} /> 下载导入模板
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <SearchableMultiSelect
-                                mode={audienceMode}
-                                options={audienceMode === 'CLASS' ? DB.CLASSES : audienceMode === 'COURSE' ? DB.COURSES : DB.USER_TYPES}
-                                onAdd={(v) => addItem(audienceMode, v)}
-                              />
-                            )}
-
-                            <div className="flex flex-wrap gap-2">
-                              {selectedItems[audienceMode].map(item => (
-                                <TagItem key={item} label={item} onRemove={() => removeItem(audienceMode, item)} />
-                              ))}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
+                          {sortedHistory.slice(0, 10).map(item => (
+                            <HistoryCard
+                              key={item.id}
+                              item={item}
+                              liveType={stream.type}
+                              onTogglePlayback={handleTogglePlayback}
+                              onConfigurePlayback={handleConfigurePlayback}
+                            />
+                          ))}
+                          {sortedHistory.length > 10 && (
+                            <button
+                              onClick={() => setIsHistoryListModalOpen(true)}
+                              className="w-full py-3 text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-blue-600 transition-all flex items-center justify-center gap-1 shadow-sm"
+                            >
+                              查看更多 ({sortedHistory.length - 10} 条更多记录) <ChevronRight size={14} />
+                            </button>
+                          )}
+                          {sortedHistory.length === 0 && (
+                            <div className="text-center py-12 text-gray-400 text-xs italic bg-gray-100/50 rounded-xl border border-dashed border-gray-200">
+                              暂无历史记录
                             </div>
-                          </div>
+                          )}
                         </div>
                       )}
                     </div>
-
-                    {/* Broadcast History */}
-                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                      <h4 className="text-xs font-black text-gray-700 flex items-center gap-2 border-b border-gray-200/50 pb-3 mb-4">
-                        <History size={14} className="text-purple-500" />
-                        开播历史
-                      </h4>
-                      <div className="space-y-3">
-                        {sortedHistory.slice(0, 3).map(item => (
-                          <HistoryCard
-                            key={item.id}
-                            item={item}
-                            liveType={stream.type}
-                            onTogglePlayback={handleTogglePlayback}
-                            onConfigurePlayback={handleConfigurePlayback}
-                          />
-                        ))}
-                      </div>
-                      <button
-                        onClick={() => setIsHistoryListModalOpen(true)}
-                        className="w-full mt-3 py-2 text-xs text-gray-500 hover:text-blue-600 font-bold flex items-center justify-center gap-1 transition-colors group"
-                      >
-                        查看更多 <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-                    </div>
                   </div>
-                </div>
+                </>
 
               )}
 
@@ -1387,6 +1373,15 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
         />
       </div >
       {/* Modals ... */}
+
+      <LiveSessionModal
+        isOpen={sessionModalConfig.isOpen}
+        onClose={() => setSessionModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onSave={handleSaveSessionModal}
+        initialData={sessionModalConfig.data}
+        liveType={stream.type}
+        isEditing={sessionModalConfig.isEditing}
+      />
 
       <HistoryListModal
         isOpen={isHistoryListModalOpen}

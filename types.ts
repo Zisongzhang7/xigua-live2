@@ -50,7 +50,7 @@ export interface LiveSession {
   hostName: string;
   coverUrl?: string;
   startTime: string; // ISO string
-  
+
   // Extended fields for consolidated configuration
   linkedLessonId?: string; // For Course Live
   linkedLessonName?: string; // For Course Live (Display)
