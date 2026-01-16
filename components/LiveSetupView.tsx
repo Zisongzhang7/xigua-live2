@@ -54,6 +54,7 @@ import { LiveStream, LiveType, InteractionCategory, InteractiveResource, Interac
 import { HistoryCard, HistoryListModal, PlaybackConfigModal } from './LiveHistoryComponents';
 import { COMMON_LABELS } from '../App';
 import LiveSessionModal from './LiveSessionModal';
+import LiveSessionForm from './LiveSessionForm';
 import CreateLiveModal from './CreateLiveModal';
 import LiveSessionList from './LiveSessionList';
 import StudentTimeStream from './StudentTimeStream';
@@ -69,7 +70,6 @@ import { AISwitchCard, AISwitchStatus } from './AISwitchCard';
 import { db } from '../services/db';
 import {
   InteractionCategoryGroup,
-  InfoItem,
   TagItem,
   ModeTab,
   InteractionToggle,
@@ -185,11 +185,14 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   // Initialize from stream data
   const [interactionsList, setInteractionsList] = useState<InteractionItem[]>(initialStream.configuredInteractions || []);
   // Auto-save interactions to DB whenever interactionsList changes
+  // REMOVED: This logic is now handled by the Session Switching Logic below
+  /*
   useEffect(() => {
     if (stream && stream.id) {
       db.streams.update(stream.id, { configuredInteractions: interactionsList });
     }
   }, [interactionsList, stream.id]);
+  */
 
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -322,6 +325,42 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     // linkUp: true // Removed
   });
 
+  // --- Session Switching Logic ---
+  
+  // 1. When interactionsList changes, sync it back to the CURRENT selected session in the stream object
+  useEffect(() => {
+    if (selectedSessionId) {
+      setStream(prevStream => {
+        const updatedSessions = (prevStream.sessions || []).map(s => {
+          if (s.id === selectedSessionId) {
+            return { ...s, configuredInteractions: interactionsList };
+          }
+          return s;
+        });
+        
+        // Only update if actually changed to avoid loop
+        const currentSession = prevStream.sessions?.find(s => s.id === selectedSessionId);
+        if (JSON.stringify(currentSession?.configuredInteractions) !== JSON.stringify(interactionsList)) {
+             const newStream = { ...prevStream, sessions: updatedSessions };
+             // Persist immediately
+             db.streams.update(prevStream.id, { sessions: updatedSessions });
+             return newStream;
+        }
+        return prevStream;
+      });
+    }
+  }, [interactionsList, selectedSessionId]);
+
+  // 2. When selectedSessionId changes, load that session's interactions into interactionsList
+  useEffect(() => {
+    if (selectedSessionId) {
+      const session = stream.sessions?.find(s => s.id === selectedSessionId);
+      if (session) {
+        setInteractionsList(session.configuredInteractions || []);
+      }
+    }
+  }, [selectedSessionId]); // Dependency on ID only, looking up in current stream state
+
   // Audio/Video Visualizer Logic
   const [audioLevel, setAudioLevel] = useState(0);
   const [mediaPermissionError, setMediaPermissionError] = useState<string | null>(null);
@@ -432,8 +471,31 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   };
 
   const handleDeleteSession = (id: string) => {
-    const updatedStream = { ...stream, sessions: (stream.sessions || []).filter(s => s.id !== id) };
+    const updatedSessions = (stream.sessions || []).filter(s => s.id !== id);
+    const updatedStream = { ...stream, sessions: updatedSessions };
     handleUpdateStream(updatedStream);
+
+    if (selectedSessionId === id) {
+        if (updatedSessions.length > 0) {
+             // Select the first available session if the current one is deleted
+             setSelectedSessionId(updatedSessions[0].id);
+        } else {
+             // No sessions left
+             setSelectedSessionId(null);
+        }
+    }
+  };
+
+  const confirmDeleteSession = (id: string) => {
+      setConfirmConfig({
+        isOpen: true,
+        title: '确认删除场次',
+        content: '删除后无法恢复，是否确认删除该直播场次？',
+        onConfirm: () => {
+            handleDeleteSession(id);
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
+      });
   };
 
   const handleUpdateSession = (id: string, updates: Partial<LiveSession>) => {
@@ -765,7 +827,8 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [sessionModalConfig, setSessionModalConfig] = useState<{ isOpen: boolean; isEditing: boolean; data?: Partial<LiveSession> }>({ isOpen: false, isEditing: false });
 
   const handleOpenAddSession = () => {
-    setSessionModalConfig({ isOpen: true, isEditing: false, data: undefined });
+    // Open modal instead of direct add
+    setSessionModalConfig({ isOpen: true, isEditing: false });
   };
 
   const handleOpenEditSession = (session: LiveSession) => {
@@ -776,15 +839,37 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     if (sessionModalConfig.isEditing && sessionModalConfig.data?.id) {
       handleUpdateSession(sessionModalConfig.data.id, sessionData);
     } else {
-      handleAddSession(sessionData as Omit<LiveSession, 'id'>);
+      // Add new session
+      const newSession: LiveSession = {
+        id: `sess-${Date.now()}`,
+        name: sessionData.name || '未命名场次',
+        hostName: sessionData.hostName || stream.teacher || '',
+        startTime: sessionData.startTime || new Date().toISOString().substring(0, 16),
+        coverUrl: sessionData.coverUrl,
+        linkedLessonId: sessionData.linkedLessonId,
+        linkedLessonName: sessionData.linkedLessonName,
+        visibleAudience: sessionData.visibleAudience || [],
+        audienceMode: sessionData.audienceMode,
+        // Initialize other fields
+        configuredInteractions: [],
+        mediaConfig: undefined,
+        obsConfig: undefined
+      };
+      
+      const updatedStream = { ...stream, sessions: [...(stream.sessions || []), newSession] };
+      handleUpdateStream(updatedStream);
+      // Automatically select the new session
+      setSelectedSessionId(newSession.id);
     }
+    // Close modal
+    setSessionModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
   return (
     <div className="flex flex-col h-full bg-[#F0F2F5]">
       {/* Toolbar */}
       <div className={`border-b px-6 py-3 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 ${isLiveMode ? (isTestLive ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100') : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={onBack}
             className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors flex items-center gap-1 font-medium text-sm"
@@ -793,9 +878,27 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
             退出
           </button>
           <div className="h-4 w-px bg-gray-200 mx-2"></div>
-          <h2 className="text-lg font-bold text-gray-800 truncate max-w-[400px]">
-            {stream.name}
-          </h2>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-lg font-bold text-gray-800 truncate max-w-[360px]">
+                {stream.name}
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black border border-gray-200 bg-white text-gray-600 whitespace-nowrap">
+                {stream.type === LiveType.COURSE ? '课程直播' : '普通直播'}
+              </span>
+              {!isLiveMode && (
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors whitespace-nowrap"
+                >
+                  编辑信息
+                </button>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 truncate max-w-[520px]">
+              {stream.description || '暂无描述'}
+            </div>
+          </div>
         </div>
 
         {/* Playback/Live Controls */}
@@ -874,85 +977,57 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-6">
+      <div className="flex-1 overflow-hidden">
         <ResizableLayout
-          initialWidths={[25, 35, 40]}
+          initialWidths={[20, 45, 35]}
           left={
-            <div className="h-full flex flex-col gap-6 overflow-hidden pr-2">
+            <div className="h-full flex flex-col overflow-hidden bg-white border-r border-gray-200">
 
               {/* Basic Info / Student Stream */}
               {isLiveMode ? (
-                <div className="h-full overflow-y-auto custom-scrollbar">
+                <div className="h-full overflow-y-auto custom-scrollbar p-4">
                   <StudentTimeStream />
                 </div>
               ) : (
                 <>
-                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-none overflow-hidden">
-
-                    <div className="flex-none px-6 pt-6">
-                      <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-                        <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                          <Info size={16} className="text-blue-600" />
-                          直播间基础信息
-                        </h3>
-                        <button onClick={() => setIsEditModalOpen(true)} className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">编辑信息</button>
+                  {/* Live Session List Container (Nav Style) */}
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    {/* Navigation Tabs Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-white">
+                      <div className="flex p-1 bg-gray-100 rounded-lg w-full">
+                        <button
+                          onClick={() => { setActiveTab('upcoming'); }}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          未播场次 ({stream.sessions?.length || 0})
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('history')}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          开播历史 ({historyList.length})
+                        </button>
                       </div>
                     </div>
 
-                    <div className="overflow-y-auto custom-scrollbar px-6 py-6 space-y-6">
-                      <div className="space-y-4 pl-1">
-                        <InfoItem label="直播名称" content={stream.name} />
-                        <InfoItem label="直播描述" content={stream.description} />
-                        <InfoItem label="直播类型" content={stream.type === LiveType.COURSE ? '课程直播' : '普通直播'} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Live Session List Container (Consolidated for Both Types) */}
-                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col flex-1 overflow-hidden">
-                    {/* Title Header */}
-                    <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-white">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} className="text-blue-600" />
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide">直播场次设置</h3>
-                      </div>
-                    </div>
-
-                    {/* Tab Content Area */}
-                    <div className="p-6 bg-gray-50/50 flex-1 overflow-hidden flex flex-col">
-                      {/* Tabs & Action */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex p-1 bg-gray-200/50 rounded-lg">
-                          <button
-                            onClick={() => { setActiveTab('upcoming'); }}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                          >
-                            未播场次 ({stream.sessions?.length || 0})
-                          </button>
-                          <button
-                            onClick={() => setActiveTab('history')}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                          >
-                            历史开播 ({historyList.length})
-                          </button>
-                        </div>
-
-                        {activeTab === 'upcoming' && (
+                    {/* Content */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                      {activeTab === 'upcoming' ? (
+                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 p-3">
                           <button
                             onClick={handleOpenAddSession}
-                            className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 flex items-center gap-1 hover:bg-blue-100 transition-colors"
+                            className="w-full py-3 rounded-xl border border-dashed border-gray-300 text-gray-500 font-bold text-xs hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all flex items-center justify-center gap-1 group shrink-0"
                           >
-                            <Plus size={12} /> 新增场次
+                            <span className="w-5 h-5 rounded-full bg-gray-200 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                                <Plus size={12} className="text-gray-500 group-hover:text-blue-600" />
+                            </span>
+                            新增场次
                           </button>
-                        )}
-                      </div>
-
-                      {activeTab === 'upcoming' ? (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          
                           <LiveSessionList
                             sessions={stream.sessions || []}
                             liveType={stream.type}
-                            onDeleteSession={handleDeleteSession}
+                            onDeleteSession={confirmDeleteSession}
                             onUpdateSession={handleUpdateSession}
                             selectedSessionId={selectedSessionId}
                             onSelectSession={setSelectedSessionId}
@@ -960,7 +1035,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                           />
                         </div>
                       ) : (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-3">
                           {sortedHistory.slice(0, 10).map(item => (
                             <HistoryCard
                               key={item.id}
@@ -979,7 +1054,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                             </button>
                           )}
                           {sortedHistory.length === 0 && (
-                            <div className="text-center py-12 text-gray-400 text-xs italic bg-gray-100/50 rounded-xl border border-dashed border-gray-200">
+                            <div className="text-center py-12 text-gray-400 text-xs italic bg-gray-50 rounded-xl border border-dashed border-gray-200">
                               暂无历史记录
                             </div>
                           )}
@@ -994,7 +1069,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
             </div>
           }
           middle={
-            <div className="h-full flex flex-col gap-6 overflow-hidden px-2">
+            <div className="h-full flex flex-col gap-6 overflow-hidden py-6 px-3">
               {/* Monitor (Moved Here) */}
               <div
                 ref={monitorCardRef}
@@ -1078,297 +1153,313 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 </div>
               </div>
 
-              {/* Live Controls & OBS */}
+              {/* Dynamic Content: Always show Controls, but maybe reset key to force re-render on session switch */}
               <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
-                <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
-                  <LiveControlPanel />
-                </div>
-                <ObsControlPanel />
+                {selectedSessionId ? (
+                  <>
+                    <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
+                      <LiveControlPanel key={`controls-${selectedSessionId}`} />
+                    </div>
+                    <ObsControlPanel key={`obs-${selectedSessionId}`} />
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                    <Settings2 size={48} className="mb-4 text-gray-200" />
+                    <p className="text-sm font-bold">暂无直播场次</p>
+                    <p className="text-xs mt-1">请在左侧新增场次</p>
+                  </div>
+                )}
               </div>
             </div>
           }
           right={
-            <div className="h-full flex flex-col gap-6 overflow-hidden pl-2">
-
-              {/* Fixed Functions */}
-              <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 px-6 py-4 flex flex-col items-start gap-3">
-                <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide whitespace-nowrap">
-                  <Sparkles size={16} className="text-blue-600" />
-                  直播功能开关 (Live Functions)
-                </h3>
-                <div className="flex items-center gap-3 flex-wrap justify-start w-full">
-                  <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
-                    <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
-                    {interactions.danmaku && (
-                      <label className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1">
-                        <input
-                          type="checkbox"
-                          className="accent-blue-600 rounded-sm w-3.5 h-3.5"
-                          checked={interactions.weakenBackgroundAudio}
-                          onChange={() => toggleInteraction('weakenBackgroundAudio')}
-                        />
-                        <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
-                      </label>
-                    )}
-                  </div>
-                  <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
-                  <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
-                </div>
-              </div>
-
-              {/* Overlay Track - Moved Here */}
-              {/* Unified Interaction List */}
-              <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
-                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
-                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                    <List size={16} className="text-blue-600" />
-                    交互列表
-                    {currentTemplateName && (
-                      <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
-                        - {currentTemplateName}
-                      </span>
-                    )}
-                  </h3>
-                  <div className="flex gap-1.5 items-center">
-                    <button
-                      onClick={() => setIsTemplateModalOpen(true)}
-                      className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                      title="读取模板"
-                    >
-                      <FolderOpen size={14} />
-                    </button>
-
-                    {currentTemplateId && (
-                      <button
-                        onClick={handleSaveTemplate}
-                        className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                        title="保存模板"
-                      >
-                        <Save size={14} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => setIsSaveAsModalOpen(true)}
-                      className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                      title="另存为模板"
-                    >
-                      <Copy size={14} />
-                    </button>
-
-                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
-
-                    <button
-                      onClick={() => handleAddInteraction()}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
-                      title="添加交互"
-                    >
-                      <Plus size={14} />
-                      <span className="text-xs font-bold">添加交互</span>
-                    </button>
-
-                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
-
-                    <button
-                      onClick={handleClearInteractions}
-                      className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                      title="清空"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  {/* Show always if I remove the group-hover above, or just wrap in group. Left panel wrapped in group? No. 
-                  Let's make them always visible or visible on hover of header. */}
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                  {Object.values(InteractionCategory).map(cat => {
-                    const catItems = interactionsList.filter(i => i.type === cat);
-                    if (catItems.length === 0) return null;
-                    return (
-                      <InteractionCategoryGroup key={cat} label={cat} count={catItems.length}>
-                        {catItems.map(item => {
-                          const state = getInteractionState(item.id);
-
-                          if (item.type === InteractionCategory.QUIZ) {
-                            return (
-                              <QuizCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                mockOptions={item.config?.options?.map((opt: any, idx: number) => ({
-                                  ...opt,
-                                  isCorrect: (idx + 1).toString() === item.config?.correctAnswer
-                                }))}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status}
-                                votes={state.votes}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.VOTE) {
-                            return (
-                              <VoteCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                mockOptions={item.config?.options}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as VoteStatus}
-                                votes={state.votes}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.DEBATE) {
-                            const votes = (state.votes as { pro: number; con: number }) || { pro: 0, con: 0 };
-                            return (
-                              <DebateCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                proView={item.config?.pro?.view}
-                                conView={item.config?.con?.view}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as DebateStatus}
-                                votes={votes}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.ONE_STAND) {
-                            return (
-                              <EliminationCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                questions={item.config?.questions}
-                                mode={item.config?.mode}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as EliminationStatus}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.GANDI_EMBED) {
-                            return (
-                              <GandiCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                projectId={item.config?.projectId}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as GandiStatus}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.LINK) {
-                            return (
-                              <LinkCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                url={item.config?.url}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as LinkStatus}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.MODEL) {
-                            return (
-                              <ModelCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                coverUrl={item.config?.coverUrl}
-                                views={item.config?.views}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as ModelStatus}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.AI_SWITCH) {
-                            return (
-                              <AISwitchCard
-                                key={item.id}
-                                id={item.id}
-                                status={state.status as AISwitchStatus}
-                                config={item.config}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onConfigChange={(c) => handleUpdateInteraction(item.id, { config: c })}
-                              />
-                            );
-                          }
-
-                          if (item.type === InteractionCategory.COURSE_SLICE) {
-                            return (
-                              <SliceListCard
-                                key={item.id}
-                                id={item.id}
-                                title={item.title}
-                                className={item.config?.className}
-                                lessonName={item.config?.lessonName}
-                                slices={item.config?.slices}
-                                onDelete={() => handleDeleteInteraction(item.id)}
-                                status={state.status as SliceListStatus}
-                                isExpanded={state.isExpanded}
-                                onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
-                                onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
-                              />
-                            );
-                          }
-
-                          return (
-                            <InteractionItemView
-                              key={item.id}
-                              title={item.title}
-                              type={item.type}
-                              time={item.time}
-                              onDelete={() => handleDeleteInteraction(item.id)}
+            <div className="h-full flex flex-col gap-6 overflow-hidden py-6 pr-6 pl-3">
+              {selectedSessionId ? (
+                <>
+                  {/* Fixed Functions */}
+                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 px-6 py-4 flex flex-col items-start gap-3">
+                    <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide whitespace-nowrap">
+                      <Sparkles size={16} className="text-blue-600" />
+                      直播功能开关 (Live Functions)
+                    </h3>
+                    <div className="flex items-center gap-3 flex-wrap justify-start w-full">
+                      <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
+                        <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
+                        {interactions.danmaku && (
+                          <label className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1">
+                            <input
+                              type="checkbox"
+                              className="accent-blue-600 rounded-sm w-3.5 h-3.5"
+                              checked={interactions.weakenBackgroundAudio}
+                              onChange={() => toggleInteraction('weakenBackgroundAudio')}
                             />
-                          );
-                        })}
-                      </InteractionCategoryGroup>
-                    );
-                  })}
-                  {interactionsList.length === 0 && (
-                    <div className="py-20 text-center text-gray-400 italic text-sm">暂无交互配置，点击右上角按钮添加</div>
-                  )}
+                            <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
+                          </label>
+                        )}
+                      </div>
+                      <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
+                      <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
+                    </div>
+                  </div>
+
+                  {/* Overlay Track - Moved Here */}
+                  {/* Unified Interaction List */}
+                  <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
+                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                        <List size={16} className="text-blue-600" />
+                        交互列表
+                        {currentTemplateName && (
+                          <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
+                            - {currentTemplateName}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex gap-1.5 items-center">
+                        <button
+                          onClick={() => setIsTemplateModalOpen(true)}
+                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                          title="读取模板"
+                        >
+                          <FolderOpen size={14} />
+                        </button>
+
+                        {currentTemplateId && (
+                          <button
+                            onClick={handleSaveTemplate}
+                            className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                            title="保存模板"
+                          >
+                            <Save size={14} />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setIsSaveAsModalOpen(true)}
+                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                          title="另存为模板"
+                        >
+                          <Copy size={14} />
+                        </button>
+
+                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+
+                        <button
+                          onClick={() => handleAddInteraction()}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
+                          title="添加交互"
+                        >
+                          <Plus size={14} />
+                          <span className="text-xs font-bold">添加交互</span>
+                        </button>
+
+                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+
+                        <button
+                          onClick={handleClearInteractions}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                          title="清空"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {/* Show always if I remove the group-hover above, or just wrap in group. Left panel wrapped in group? No. 
+                      Let's make them always visible or visible on hover of header. */}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
+                      {Object.values(InteractionCategory).map(cat => {
+                        const catItems = interactionsList.filter(i => i.type === cat);
+                        if (catItems.length === 0) return null;
+                        return (
+                          <InteractionCategoryGroup key={cat} label={cat} count={catItems.length}>
+                            {catItems.map(item => {
+                              const state = getInteractionState(item.id);
+
+                              if (item.type === InteractionCategory.QUIZ) {
+                                return (
+                                  <QuizCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    mockOptions={item.config?.options?.map((opt: any, idx: number) => ({
+                                      ...opt,
+                                      isCorrect: (idx + 1).toString() === item.config?.correctAnswer
+                                    }))}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status}
+                                    votes={state.votes}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.VOTE) {
+                                return (
+                                  <VoteCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    mockOptions={item.config?.options}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as VoteStatus}
+                                    votes={state.votes}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.DEBATE) {
+                                const votes = (state.votes as { pro: number; con: number }) || { pro: 0, con: 0 };
+                                return (
+                                  <DebateCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    proView={item.config?.pro?.view}
+                                    conView={item.config?.con?.view}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as DebateStatus}
+                                    votes={votes}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.ONE_STAND) {
+                                return (
+                                  <EliminationCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    questions={item.config?.questions}
+                                    mode={item.config?.mode}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as EliminationStatus}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.GANDI_EMBED) {
+                                return (
+                                  <GandiCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    projectId={item.config?.projectId}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as GandiStatus}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.LINK) {
+                                return (
+                                  <LinkCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    url={item.config?.url}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as LinkStatus}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.MODEL) {
+                                return (
+                                  <ModelCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    coverUrl={item.config?.coverUrl}
+                                    views={item.config?.views}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as ModelStatus}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.AI_SWITCH) {
+                                return (
+                                  <AISwitchCard
+                                    key={item.id}
+                                    id={item.id}
+                                    status={state.status as AISwitchStatus}
+                                    config={item.config}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onConfigChange={(c) => handleUpdateInteraction(item.id, { config: c })}
+                                  />
+                                );
+                              }
+
+                              if (item.type === InteractionCategory.COURSE_SLICE) {
+                                return (
+                                  <SliceListCard
+                                    key={item.id}
+                                    id={item.id}
+                                    title={item.title}
+                                    className={item.config?.className}
+                                    lessonName={item.config?.lessonName}
+                                    slices={item.config?.slices}
+                                    onDelete={() => handleDeleteInteraction(item.id)}
+                                    status={state.status as SliceListStatus}
+                                    isExpanded={state.isExpanded}
+                                    onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
+                                    onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                  />
+                                );
+                              }
+
+                              return (
+                                <InteractionItemView
+                                  key={item.id}
+                                  title={item.title}
+                                  type={item.type}
+                                  time={item.time}
+                                  onDelete={() => handleDeleteInteraction(item.id)}
+                                />
+                              );
+                            })}
+                          </InteractionCategoryGroup>
+                        );
+                      })}
+                      {interactionsList.length === 0 && (
+                        <div className="py-20 text-center text-gray-400 italic text-sm">暂无交互配置，点击右上角按钮添加</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
+                  <List size={48} className="mb-4 text-gray-200" />
+                  <p className="text-sm font-bold">暂无交互列表</p>
+                  <p className="text-xs mt-1">请先选择一个直播场次</p>
                 </div>
-              </div>
+              )}
             </div>
-
-
-
           }
         />
       </div >

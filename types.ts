@@ -1,4 +1,3 @@
-
 export enum LiveStatus {
   LIVE = 'LIVE',
   NOT_STARTED = 'NOT_STARTED'
@@ -44,6 +43,24 @@ export interface InteractionItem {
   autoClose?: boolean;
 }
 
+export interface ObsConfig {
+    activeSceneName: string;
+    programSceneName: string;
+    connectionConfig: {
+        ip: string;
+        port: string;
+        password?: string;
+    };
+}
+
+export interface MediaConfig {
+    audioSource: string;
+    videoSource: string;
+    isMicMuted: boolean;
+    isCameraOff: boolean;
+    cutInMode: 'NONE' | 'FULLSCREEN' | 'PIP';
+}
+
 export interface LiveSession {
   id: string;
   name: string;
@@ -56,6 +73,11 @@ export interface LiveSession {
   linkedLessonName?: string; // For Course Live (Display)
   visibleAudience?: string[]; // For Normal Live (List of strings for simplicity or IDs)
   audienceMode?: 'CLASS' | 'COURSE' | 'USER_TYPE' | 'ID'; // Store the mode
+
+  // Per-session configuration
+  configuredInteractions?: InteractionItem[];
+  mediaConfig?: MediaConfig;
+  obsConfig?: ObsConfig;
 }
 
 export type PlaybackMethod = 'RECORDED_LESSON' | 'UPLOAD_JSON';
@@ -63,7 +85,7 @@ export type PlaybackMethod = 'RECORDED_LESSON' | 'UPLOAD_JSON';
 export interface LiveHistoryItem extends LiveSession {
   endTime?: string;
   participantCount?: number;
-  visibleAudience?: string; // For Normal Live
+  visibleAudience?: string[]; // For Normal Live (Type fixed to match LiveSession)
   className?: string; // For Course Live
   lessonName?: string; // For Course Live
   linkedLessonId?: string; // For Course Live
@@ -82,6 +104,7 @@ export interface LiveStream {
   status: LiveStatus;
   startTime?: string;
   sessions?: LiveSession[];
+  // configuredInteractions is now moved to LiveSession, but keeping here for legacy support if needed or as default
   configuredInteractions?: InteractionItem[];
 }
 
