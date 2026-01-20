@@ -19,90 +19,108 @@ interface HistoryCardProps {
     liveType: LiveType;
     onTogglePlayback: (item: LiveHistoryItem, enable: boolean) => void;
     onConfigurePlayback: (item: LiveHistoryItem) => void;
+    onSelect?: (item: LiveHistoryItem) => void;
+    isSelected?: boolean;
 }
 
-export const HistoryCard: React.FC<HistoryCardProps> = ({ item, liveType, onTogglePlayback, onConfigurePlayback }) => {
+export const HistoryCard: React.FC<HistoryCardProps> = ({ 
+    item, 
+    liveType, 
+    onTogglePlayback, 
+    onConfigurePlayback,
+    onSelect,
+    isSelected
+}) => {
     return (
-        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex gap-3">
-            <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div>
-                    <div className="flex justify-between items-start">
-                        <h5 className="text-xs font-bold text-gray-800 truncate leading-tight mb-1" title={item.name}>
-                            {liveType === LiveType.COURSE 
-                                ? `${item.className || ''} ${item.lessonName || ''}` 
-                                : item.name}
-                        </h5>
+        <div 
+            onClick={() => onSelect?.(item)}
+            className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-3 ${
+                isSelected 
+                ? 'bg-blue-50/30 border-blue-400 shadow-md ring-1 ring-blue-400' 
+                : 'bg-white border-gray-200 shadow-sm hover:border-gray-300'
+            }`}
+        >
+            <div className="flex gap-3">
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                        <div className="flex justify-between items-start">
+                            <h5 className="text-xs font-bold text-gray-800 truncate leading-tight mb-1" title={item.name}>
+                                {liveType === LiveType.COURSE 
+                                    ? `${item.className || ''} ${item.lessonName || ''}` 
+                                    : item.name}
+                            </h5>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-400">
+                            {liveType === LiveType.ORDINARY && (
+                                <div className="flex items-center gap-1">
+                                    <User size={10} /> {item.hostName}
+                                </div>
+                            )}
+                             <div className="flex items-center gap-1">
+                                <Clock size={10} /> 
+                                <span>
+                                    {new Date(item.startTime).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                    {item.endTime && ` - ${new Date(item.endTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-400 mt-1">
+                             <div className="flex items-center gap-1">
+                                <Users size={10} /> {item.participantCount || 0}人参与
+                            </div>
+                            {liveType === LiveType.ORDINARY ? (
+                                <div className="truncate max-w-[150px]" title={item.visibleAudience}>
+                                    可见: {item.visibleAudience}
+                                </div>
+                            ) : (
+                                 <div className="truncate max-w-[150px]" title={item.linkedLessonId}>
+                                    关联: {item.lessonName}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Playback Toggle Section */}
+                <div className="flex flex-col items-end justify-between min-w-[80px]">
+                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <span className={`text-[10px] font-bold ${item.hasPlayback ? 'text-blue-600' : 'text-gray-400'}`}>
+                            {item.hasPlayback ? '回放已开' : '回放关闭'}
+                        </span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={item.hasPlayback}
+                                onChange={(e) => {
+                                    if (e.target.checked) {
+                                        // Opening: Check if configured first or open config
+                                        if (!item.playbackMethod) {
+                                            onConfigurePlayback(item);
+                                        } else {
+                                            onTogglePlayback(item, true);
+                                        }
+                                    } else {
+                                        onTogglePlayback(item, false);
+                                    }
+                                }}
+                            />
+                            <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-400">
-                        {liveType === LiveType.ORDINARY && (
-                            <div className="flex items-center gap-1">
-                                <User size={10} /> {item.hostName}
-                            </div>
-                        )}
-                         <div className="flex items-center gap-1">
-                            <Clock size={10} /> 
-                            <span>
-                                {new Date(item.startTime).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                {item.endTime && ` - ${new Date(item.endTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-400 mt-1">
-                         <div className="flex items-center gap-1">
-                            <Users size={10} /> {item.participantCount || 0}人参与
-                        </div>
-                        {liveType === LiveType.ORDINARY ? (
-                            <div className="truncate max-w-[150px]" title={item.visibleAudience}>
-                                可见: {item.visibleAudience}
-                            </div>
-                        ) : (
-                             <div className="truncate max-w-[150px]" title={item.linkedLessonId}>
-                                关联: {item.lessonName}
-                            </div>
-                        )}
-                    </div>
+                    {item.hasPlayback && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onConfigurePlayback(item); }}
+                            className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors flex items-center gap-1 font-medium"
+                        >
+                           {item.playbackMethod === 'RECORDED_LESSON' ? <Video size={10} /> : <FileJson size={10} />}
+                           {item.playbackMethod === 'RECORDED_LESSON' ? '录播课' : 'JSON数据'}
+                        </button>
+                    )}
                 </div>
-            </div>
-
-            {/* Playback Toggle Section */}
-            <div className="flex flex-col items-end justify-between min-w-[80px]">
-                 <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold ${item.hasPlayback ? 'text-blue-600' : 'text-gray-400'}`}>
-                        {item.hasPlayback ? '回放已开' : '回放关闭'}
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={item.hasPlayback}
-                            onChange={(e) => {
-                                if (e.target.checked) {
-                                    // Opening: Check if configured first or open config
-                                    if (!item.playbackMethod) {
-                                        onConfigurePlayback(item);
-                                    } else {
-                                        onTogglePlayback(item, true);
-                                    }
-                                } else {
-                                    onTogglePlayback(item, false);
-                                }
-                            }}
-                        />
-                        <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                </div>
-                
-                {item.hasPlayback && (
-                    <button 
-                        onClick={() => onConfigurePlayback(item)}
-                        className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors flex items-center gap-1 font-medium"
-                    >
-                       {item.playbackMethod === 'RECORDED_LESSON' ? <Video size={10} /> : <FileJson size={10} />}
-                       {item.playbackMethod === 'RECORDED_LESSON' ? '录播课' : 'JSON数据'}
-                    </button>
-                )}
             </div>
         </div>
     );

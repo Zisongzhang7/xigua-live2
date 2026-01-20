@@ -161,7 +161,7 @@ export const AISwitchCard: React.FC<AISwitchCardProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-gray-50 bg-gray-50/30 flex justify-end">
+            <div className={`px-5 py-4 border-t border-gray-50 bg-gray-50/30 flex justify-end ${isReadOnly ? 'opacity-80' : ''}`}>
                 <button
                     onClick={toggleStatus}
                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg active:scale-95 ${isActive

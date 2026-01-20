@@ -105,7 +105,7 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                         <label className="text-xs font-bold text-gray-700">场次名称 <span className="text-red-500">*</span></label>
                         <input
                             type="text"
-                            className="w-full text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                            className="w-full bg-white text-gray-900 text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                             placeholder="例如：第一场：开幕式"
                             value={sessionData.name}
                             onChange={e => setSessionData(prev => ({ ...prev, name: e.target.value }))}
@@ -118,7 +118,7 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                             <label className="text-xs font-bold text-gray-700">主播/嘉宾 <span className="text-red-500">*</span></label>
                             <input
                                 type="text"
-                                className="w-full text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                className="w-full bg-white text-gray-900 text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                                 placeholder="姓名"
                                 value={sessionData.hostName}
                                 onChange={e => setSessionData(prev => ({ ...prev, hostName: e.target.value }))}
@@ -128,7 +128,7 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                             <label className="text-xs font-bold text-gray-700">开播时间 <span className="text-red-500">*</span></label>
                             <input
                                 type="datetime-local"
-                                className="w-full text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                className="w-full bg-white text-gray-900 text-sm p-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                                 value={sessionData.startTime}
                                 onChange={e => setSessionData(prev => ({ ...prev, startTime: e.target.value }))}
                             />
@@ -218,7 +218,7 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                                             </div>
                                             <textarea
                                                 placeholder="请输入学号，多个学号用逗号分隔..."
-                                                className="w-full bg-white border border-gray-200 rounded-lg p-3 text-sm outline-none focus:border-blue-500 h-24 resize-none"
+                                                className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg p-3 text-sm outline-none focus:border-blue-500 h-24 resize-none"
                                                 value={sessionData.visibleAudience?.join(', ')}
                                                 onChange={(e) => setSessionData(prev => ({ ...prev, visibleAudience: e.target.value.split(/[,，\n]/).map(s => s.trim()).filter(Boolean) }))}
                                             />

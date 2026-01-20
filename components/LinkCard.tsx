@@ -175,7 +175,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
             </div>
 
             {/* Footer Actions */}
-            <div className="mt-auto px-5 py-4 border-t border-gray-50 flex items-center justify-between bg-gray-50/30">
+            <div className={`mt-auto px-5 py-4 border-t border-gray-50 flex items-center justify-between bg-gray-50/30 ${isReadOnly ? 'opacity-80' : ''}`}>
                 <div className="flex gap-2">
                     {status === 'IDLE' && (
                         <ActionBtn onClick={handleStart} variant="primary" icon={<Play size={14} fill="currentColor" />}>开启投放</ActionBtn>
@@ -190,14 +190,12 @@ export const LinkCard: React.FC<LinkCardProps> = ({
                     )}
                 </div>
 
-                {!isReadOnly && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-90"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                )}
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-90"
+                >
+                    <Trash2 size={16} />
+                </button>
             </div>
         </div>
     );

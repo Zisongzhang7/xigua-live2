@@ -43,6 +43,7 @@ import {
   LayoutList,
   Check,
   Filter,
+  BarChart2,
   Tag as TagIcon,
   RotateCcw,
   FileStack,
@@ -171,6 +172,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [activeMainTrackId, setActiveMainTrackId] = useState<string | null>(null); // Currently Live Main Item
   const [completedMainTrackIds, setCompletedMainTrackIds] = useState<Set<string>>(new Set()); // History of played items
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null); // Selected Session for Start Live
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null); // State for selected history session
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templateFilterName, setTemplateFilterName] = useState('');
   const [templateFilterTags, setTemplateFilterTags] = useState<string[]>([]);
@@ -256,10 +258,35 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     participantCount: 500 + i * 50,
     hasPlayback: i % 2 === 0,
     playbackMethod: i % 2 === 0 ? 'UPLOAD_JSON' : undefined,
-    visibleAudience: '高一(3)班, 高一(4)班',
+    visibleAudience: ['高一(3)班', '高一(4)班'],
     className: '高一(3)班',
     lessonName: `第${15 - i}课：函数基础`,
     linkedLessonId: `L00${i + 1}`,
+    configuredInteractions: [
+      {
+        id: `h-q-${i}`,
+        title: '开场测验：基础概念回顾',
+        type: InteractionCategory.QUIZ,
+        time: '00:05:00',
+        track: 'OVERLAY',
+        triggerMode: 'MANUAL',
+        config: {
+          options: [{ text: '概念A' }, { text: '概念B' }, { text: '概念C' }],
+          correctAnswer: '1'
+        }
+      },
+      {
+        id: `h-v-${i}`,
+        title: '互动投票：你最感兴趣的章节',
+        type: InteractionCategory.VOTE,
+        time: '00:45:00',
+        track: 'OVERLAY',
+        triggerMode: 'MANUAL',
+        config: {
+          options: [{ text: '章节1' }, { text: '章节2' }, { text: '章节3' }]
+        }
+      }
+    ]
   })));
 
   const [playbackModalConfig, setPlaybackModalConfig] = useState<{ isOpen: boolean; item: LiveHistoryItem | null }>({ isOpen: false, item: null });
@@ -361,6 +388,16 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     }
   }, [selectedSessionId]); // Dependency on ID only, looking up in current stream state
 
+  // 2b. When selectedHistoryId changes, load that history item's interactions into interactionsList
+  useEffect(() => {
+    if (selectedHistoryId) {
+      const historyItem = historyList.find(h => h.id === selectedHistoryId);
+      if (historyItem) {
+        setInteractionsList(historyItem.configuredInteractions || []);
+      }
+    }
+  }, [selectedHistoryId, historyList]);
+
   // Audio/Video Visualizer Logic
   const [audioLevel, setAudioLevel] = useState(0);
   const [mediaPermissionError, setMediaPermissionError] = useState<string | null>(null);
@@ -455,6 +492,27 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
       // Let's just toggle.
       return { ...prev, [key]: !prev[key] };
     });
+  };
+
+  const handleDownloadHistoryData = (historyId: string) => {
+    const historyItem = historyList.find(h => h.id === historyId);
+    if (!historyItem) return;
+
+    const dataToDownload = {
+      ...historyItem,
+      downloadedAt: new Date().toISOString(),
+      source: 'LiveMaster Control'
+    };
+
+    const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `live-data-${historyItem.id}-${new Date().getTime()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleUpdateStream = (updatedStream: LiveStream) => {
@@ -800,7 +858,9 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   };
 
   const startLiveValidation = useMemo(() => {
-    // 1. Must select a session
+    // 1. Must select a session OR a history item to restart
+    if (selectedHistoryId) return { valid: true, msg: '' };
+    
     if (!selectedSessionId) return { valid: false, msg: '未选择直播场次' };
 
     const session = stream.sessions?.find(s => s.id === selectedSessionId);
@@ -819,7 +879,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     }
 
     return { valid: true, msg: '' };
-  }, [stream.type, selectedSessionId, stream.sessions]);
+  }, [stream.type, selectedSessionId, selectedHistoryId, stream.sessions]);
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
 
@@ -954,7 +1014,12 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 title={!startLiveValidation.valid ? startLiveValidation.msg : ''}
               >
                 <button
-                  onClick={() => setIsLiveMode(true)}
+                  onClick={() => {
+                    setIsLiveMode(true);
+                    if (selectedHistoryId) {
+                      setSelectedHistoryId(null);
+                    }
+                  }}
                   disabled={!startLiveValidation.valid}
                   className={`px-6 py-2 rounded-lg transition-all shadow-lg flex items-center gap-2 text-sm font-bold active:scale-95 ${!startLiveValidation.valid
                     ? 'bg-gray-300 text-white cursor-not-allowed shadow-none'
@@ -996,13 +1061,19 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-white">
                       <div className="flex p-1 bg-gray-100 rounded-lg w-full">
                         <button
-                          onClick={() => { setActiveTab('upcoming'); }}
+                          onClick={() => { 
+                            setActiveTab('upcoming'); 
+                            setSelectedHistoryId(null);
+                          }}
                           className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                           未播场次 ({stream.sessions?.length || 0})
                         </button>
                         <button
-                          onClick={() => setActiveTab('history')}
+                          onClick={() => {
+                            setActiveTab('history');
+                            setSelectedSessionId(null);
+                          }}
                           className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                           开播历史 ({historyList.length})
@@ -1030,7 +1101,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                             onDeleteSession={confirmDeleteSession}
                             onUpdateSession={handleUpdateSession}
                             selectedSessionId={selectedSessionId}
-                            onSelectSession={setSelectedSessionId}
+                            onSelectSession={(id) => {
+                              setSelectedSessionId(id);
+                              setSelectedHistoryId(null);
+                            }}
                             onEditSession={handleOpenEditSession}
                           />
                         </div>
@@ -1043,6 +1117,8 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                               liveType={stream.type}
                               onTogglePlayback={handleTogglePlayback}
                               onConfigurePlayback={handleConfigurePlayback}
+                              isSelected={selectedHistoryId === item.id}
+                              onSelect={(item) => setSelectedHistoryId(item.id)}
                             />
                           ))}
                           {sortedHistory.length > 10 && (
@@ -1070,11 +1146,36 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
           }
           middle={
             <div className="h-full flex flex-col gap-6 overflow-hidden py-6 px-3">
-              {/* Monitor (Moved Here) */}
-              <div
-                ref={monitorCardRef}
-                className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0"
-              >
+              {/* Data Dashboard View when History item is selected */}
+              {selectedHistoryId && !isLiveMode ? (
+                <div className="flex-1 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+                  <div className="p-4 bg-white rounded-2xl border border-blue-100 shadow-sm mb-4 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                         <BarChart2 size={16} className="text-blue-600" />
+                         数据看板 - {historyList.find(h => h.id === selectedHistoryId)?.name || '历史场次'}
+                      </h3>
+                      <p className="text-[10px] text-gray-400 mt-1">查看历史场次的互动数据与动态流回溯</p>
+                    </div>
+                    <button 
+                      onClick={() => handleDownloadHistoryData(selectedHistoryId)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100"
+                    >
+                      <Download size={14} />
+                      下载本场数据
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-white">
+                    <StudentTimeStream />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Monitor (Moved Here) */}
+                  <div
+                    ref={monitorCardRef}
+                    className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0"
+                  >
                 <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                   <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
                     <Video size={16} className="text-blue-600" />
@@ -1155,12 +1256,12 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
               {/* Dynamic Content: Always show Controls, but maybe reset key to force re-render on session switch */}
               <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
-                {selectedSessionId ? (
+                {(selectedSessionId || isLiveMode) ? (
                   <>
                     <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
-                      <LiveControlPanel key={`controls-${selectedSessionId}`} />
+                      <LiveControlPanel key={`controls-${selectedSessionId || 'live'}`} />
                     </div>
-                    <ObsControlPanel key={`obs-${selectedSessionId}`} />
+                    <ObsControlPanel key={`obs-${selectedSessionId || 'live'}`} />
                   </>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
@@ -1170,11 +1271,13 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                   </div>
                 )}
               </div>
-            </div>
-          }
+            </>
+          )}
+        </div>
+      }
           right={
             <div className="h-full flex flex-col gap-6 overflow-hidden py-6 pr-6 pl-3">
-              {selectedSessionId ? (
+              {(selectedSessionId || selectedHistoryId || isLiveMode) ? (
                 <>
                   {/* Fixed Functions */}
                   <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 px-6 py-4 flex flex-col items-start gap-3">
@@ -1182,90 +1285,88 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                       <Sparkles size={16} className="text-blue-600" />
                       直播功能开关 (Live Functions)
                     </h3>
-                    <div className="flex items-center gap-3 flex-wrap justify-start w-full">
-                      <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
-                        <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
-                        {interactions.danmaku && (
-                          <label className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1">
-                            <input
-                              type="checkbox"
-                              className="accent-blue-600 rounded-sm w-3.5 h-3.5"
-                              checked={interactions.weakenBackgroundAudio}
-                              onChange={() => toggleInteraction('weakenBackgroundAudio')}
-                            />
-                            <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
-                          </label>
-                        )}
+                      <div className="flex items-center gap-3 flex-wrap justify-start w-full">
+                        <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
+                          <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
+                          {interactions.danmaku && (
+                            <label className="flex items-center gap-1.5 px-2 py-1.5 select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="accent-blue-600 rounded-sm w-3.5 h-3.5"
+                                checked={interactions.weakenBackgroundAudio}
+                                onChange={() => toggleInteraction('weakenBackgroundAudio')}
+                              />
+                              <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
+                            </label>
+                          )}
+                        </div>
+                        <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
+                        <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
                       </div>
-                      <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
-                      <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
                     </div>
-                  </div>
 
-                  {/* Overlay Track - Moved Here */}
-                  {/* Unified Interaction List */}
-                  <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
-                    <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
-                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                        <List size={16} className="text-blue-600" />
-                        交互列表
-                        {currentTemplateName && (
-                          <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
-                            - {currentTemplateName}
-                          </span>
-                        )}
-                      </h3>
-                      <div className="flex gap-1.5 items-center">
-                        <button
-                          onClick={() => setIsTemplateModalOpen(true)}
-                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                          title="读取模板"
-                        >
-                          <FolderOpen size={14} />
-                        </button>
-
-                        {currentTemplateId && (
+                    {/* Overlay Track - Moved Here */}
+                    {/* Unified Interaction List */}
+                    <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
+                      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
+                        <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                          <List size={16} className="text-blue-600" />
+                          交互列表 {selectedHistoryId && '(历史回溯)'}
+                          {currentTemplateName && (
+                            <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
+                              - {currentTemplateName}
+                            </span>
+                          )}
+                        </h3>
+                        <div className="flex gap-1.5 items-center">
                           <button
-                            onClick={handleSaveTemplate}
+                            onClick={() => setIsTemplateModalOpen(true)}
                             className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                            title="保存模板"
+                            title="读取模板"
                           >
-                            <Save size={14} />
+                            <FolderOpen size={14} />
                           </button>
-                        )}
 
-                        <button
-                          onClick={() => setIsSaveAsModalOpen(true)}
-                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                          title="另存为模板"
-                        >
-                          <Copy size={14} />
-                        </button>
+                          {currentTemplateId && (
+                            <button
+                              onClick={handleSaveTemplate}
+                              className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                              title="保存模板"
+                            >
+                              <Save size={14} />
+                            </button>
+                          )}
 
-                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+                          <button
+                            onClick={() => setIsSaveAsModalOpen(true)}
+                            className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                            title="另存为模板"
+                          >
+                            <Copy size={14} />
+                          </button>
 
-                        <button
-                          onClick={() => handleAddInteraction()}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
-                          title="添加交互"
-                        >
-                          <Plus size={14} />
-                          <span className="text-xs font-bold">添加交互</span>
-                        </button>
+                          <div className="w-px h-3 bg-gray-200 mx-1"></div>
 
-                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+                          <button
+                            onClick={() => handleAddInteraction()}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
+                            title="添加交互"
+                          >
+                            <Plus size={14} />
+                            <span className="text-xs font-bold">添加交互</span>
+                          </button>
 
-                        <button
-                          onClick={handleClearInteractions}
-                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                          title="清空"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                          <div className="w-px h-3 bg-gray-200 mx-1"></div>
+
+                          <button
+                            onClick={handleClearInteractions}
+                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                            title="清空"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      {/* Show always if I remove the group-hover above, or just wrap in group. Left panel wrapped in group? No. 
-                      Let's make them always visible or visible on hover of header. */}
-                    </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
                       {Object.values(InteractionCategory).map(cat => {
@@ -1293,6 +1394,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1311,6 +1413,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1331,6 +1434,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onVotesUpdate={(v) => updateInteractionState(item.id, { votes: v })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1348,6 +1452,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     isExpanded={state.isExpanded}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1364,6 +1469,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     isExpanded={state.isExpanded}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1380,6 +1486,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     isExpanded={state.isExpanded}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1397,6 +1504,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     isExpanded={state.isExpanded}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1411,6 +1519,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     onDelete={() => handleDeleteInteraction(item.id)}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onConfigChange={(c) => handleUpdateInteraction(item.id, { config: c })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1429,6 +1538,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                     isExpanded={state.isExpanded}
                                     onStatusChange={(s) => updateInteractionState(item.id, { status: s })}
                                     onExpandChange={(e) => updateInteractionState(item.id, { isExpanded: e })}
+                                    isReadOnly={!!selectedHistoryId}
                                   />
                                 );
                               }
@@ -1440,6 +1550,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                                   type={item.type}
                                   time={item.time}
                                   onDelete={() => handleDeleteInteraction(item.id)}
+                                  isReadOnly={!!selectedHistoryId}
                                 />
                               );
                             })}
@@ -1540,7 +1651,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-700 uppercase">测试账号 (学号)</label>
                   <textarea
-                    className="w-full h-32 p-3 text-sm border border-gray-200 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-200 outline-none resize-none transition-all placeholder:text-gray-300 font-mono"
+                    className="w-full h-32 p-3 text-sm bg-white text-gray-900 border border-gray-200 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-200 outline-none resize-none transition-all placeholder:text-gray-300 font-mono"
                     placeholder="请输入学号，多个学号请用英文逗号分隔&#10;例如: 2024001,2024002"
                     value={testStudentIds}
                     onChange={(e) => setTestStudentIds(e.target.value)}

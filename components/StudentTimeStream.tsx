@@ -225,12 +225,6 @@ const StudentTimeStream: React.FC = () => {
                 <>
                     {/* Header & Filter Bar */}
                     <div className="p-3 border-b border-gray-100 bg-white space-y-3 flex-shrink-0 z-10">
-                        <div className="flex justify-end items-center">
-                            <span className="text-[10px] font-bold bg-green-100 text-green-600 px-2 py-1 rounded-full animate-pulse flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> 接收中
-                            </span>
-                        </div>
-
                         {/* Filter Controls */}
                         <div className="flex gap-2 text-xs">
                             {/* Event Type Filter */}

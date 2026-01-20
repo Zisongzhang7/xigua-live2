@@ -139,7 +139,7 @@ export const CascadingSearchSelector: React.FC<{ onSelect: (cls: string, lesson:
                                     value={classSearch}
                                     onChange={e => setClassSearch(e.target.value)}
                                     placeholder="搜索班级..."
-                                    className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold outline-none focus:border-blue-500 transition-colors"
                                 />
                             </div>
                         </div>
@@ -171,7 +171,7 @@ export const CascadingSearchSelector: React.FC<{ onSelect: (cls: string, lesson:
                                     onChange={e => setLessonSearch(e.target.value)}
                                     placeholder={activeClass ? "搜索课节..." : "请先选择班级"}
                                     disabled={!activeClass}
-                                    className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold outline-none focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:text-gray-400"
+                                    className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold outline-none focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:text-gray-400"
                                 />
                             </div>
                         </div>
@@ -548,7 +548,14 @@ export const SearchableMultiSelect: React.FC<{ mode: string, options: string[], 
     );
 };
 
-export const InteractionItemView: React.FC<{ title: string; type: string; time: string; onDelete: () => void; dragHandle?: React.ReactNode }> = ({ title, type, time, onDelete, dragHandle }) => (
+export const InteractionItemView: React.FC<{
+    title: string;
+    type: string;
+    time: string;
+    onDelete: () => void;
+    dragHandle?: React.ReactNode;
+    isReadOnly?: boolean;
+}> = ({ title, type, time, onDelete, dragHandle, isReadOnly = false }) => (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-blue-200 transition-all group flex items-start gap-3">
         {dragHandle && <div className="mt-1">{dragHandle}</div>}
         <div className="flex-1">
