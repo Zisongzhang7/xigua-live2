@@ -85,6 +85,7 @@ import {
   ResizableLayout
 } from './LiveSetupComponents';
 import { LiveControlPanel, ObsControlPanel } from './LiveStreamControls';
+import { LinkMicPanel } from './LinkMicPanel';
 
 interface LiveSetupViewProps {
   stream: LiveStream;
@@ -348,12 +349,13 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     weakenBackgroundAudio: false, // New sub-switch state
     im: true,
     team: false,
+    linkMic: false,
     // redEnvelope: false, // Removed
     // linkUp: true // Removed
   });
 
   // --- Session Switching Logic ---
-  
+
   // 1. When interactionsList changes, sync it back to the CURRENT selected session in the stream object
   useEffect(() => {
     if (selectedSessionId) {
@@ -364,14 +366,14 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
           }
           return s;
         });
-        
+
         // Only update if actually changed to avoid loop
         const currentSession = prevStream.sessions?.find(s => s.id === selectedSessionId);
         if (JSON.stringify(currentSession?.configuredInteractions) !== JSON.stringify(interactionsList)) {
-             const newStream = { ...prevStream, sessions: updatedSessions };
-             // Persist immediately
-             db.streams.update(prevStream.id, { sessions: updatedSessions });
-             return newStream;
+          const newStream = { ...prevStream, sessions: updatedSessions };
+          // Persist immediately
+          db.streams.update(prevStream.id, { sessions: updatedSessions });
+          return newStream;
         }
         return prevStream;
       });
@@ -534,26 +536,26 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     handleUpdateStream(updatedStream);
 
     if (selectedSessionId === id) {
-        if (updatedSessions.length > 0) {
-             // Select the first available session if the current one is deleted
-             setSelectedSessionId(updatedSessions[0].id);
-        } else {
-             // No sessions left
-             setSelectedSessionId(null);
-        }
+      if (updatedSessions.length > 0) {
+        // Select the first available session if the current one is deleted
+        setSelectedSessionId(updatedSessions[0].id);
+      } else {
+        // No sessions left
+        setSelectedSessionId(null);
+      }
     }
   };
 
   const confirmDeleteSession = (id: string) => {
-      setConfirmConfig({
-        isOpen: true,
-        title: '确认删除场次',
-        content: '删除后无法恢复，是否确认删除该直播场次？',
-        onConfirm: () => {
-            handleDeleteSession(id);
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        }
-      });
+    setConfirmConfig({
+      isOpen: true,
+      title: '确认删除场次',
+      content: '删除后无法恢复，是否确认删除该直播场次？',
+      onConfirm: () => {
+        handleDeleteSession(id);
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleUpdateSession = (id: string, updates: Partial<LiveSession>) => {
@@ -860,7 +862,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const startLiveValidation = useMemo(() => {
     // 1. Must select a session OR a history item to restart
     if (selectedHistoryId) return { valid: true, msg: '' };
-    
+
     if (!selectedSessionId) return { valid: false, msg: '未选择直播场次' };
 
     const session = stream.sessions?.find(s => s.id === selectedSessionId);
@@ -915,7 +917,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
         mediaConfig: undefined,
         obsConfig: undefined
       };
-      
+
       const updatedStream = { ...stream, sessions: [...(stream.sessions || []), newSession] };
       handleUpdateStream(updatedStream);
       // Automatically select the new session
@@ -1061,8 +1063,8 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-white">
                       <div className="flex p-1 bg-gray-100 rounded-lg w-full">
                         <button
-                          onClick={() => { 
-                            setActiveTab('upcoming'); 
+                          onClick={() => {
+                            setActiveTab('upcoming');
                             setSelectedHistoryId(null);
                           }}
                           className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
@@ -1090,11 +1092,11 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                             className="w-full py-3 rounded-xl border border-dashed border-gray-300 text-gray-500 font-bold text-xs hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all flex items-center justify-center gap-1 group shrink-0"
                           >
                             <span className="w-5 h-5 rounded-full bg-gray-200 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                                <Plus size={12} className="text-gray-500 group-hover:text-blue-600" />
+                              <Plus size={12} className="text-gray-500 group-hover:text-blue-600" />
                             </span>
                             新增场次
                           </button>
-                          
+
                           <LiveSessionList
                             sessions={stream.sessions || []}
                             liveType={stream.type}
@@ -1152,12 +1154,12 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                   <div className="p-4 bg-white rounded-2xl border border-blue-100 shadow-sm mb-4 flex justify-between items-center">
                     <div>
                       <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                         <BarChart2 size={16} className="text-blue-600" />
-                         数据看板 - {historyList.find(h => h.id === selectedHistoryId)?.name || '历史场次'}
+                        <BarChart2 size={16} className="text-blue-600" />
+                        数据看板 - {historyList.find(h => h.id === selectedHistoryId)?.name || '历史场次'}
                       </h3>
                       <p className="text-[10px] text-gray-400 mt-1">查看历史场次的互动数据与动态流回溯</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => handleDownloadHistoryData(selectedHistoryId)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100"
                     >
@@ -1176,105 +1178,105 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     ref={monitorCardRef}
                     className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0"
                   >
-                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                    <Video size={16} className="text-blue-600" />
-                    画面回显
-                  </h3>
-                  <button
-                    onClick={toggleMonitorFullscreen}
-                    className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
-                    title={isMonitorFullscreen ? "退出全屏" : "全屏"}
-                  >
-                    {isMonitorFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                  </button>
-                </div>
-                <div className="w-full bg-[#0c0c0c] relative flex items-center justify-center group overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                  {/* Fallback Cover Image (Background) */}
-                  <img
-                    src={stream.coverUrl}
-                    className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale z-0"
-                    alt="Preview Background"
-                  />
+                    <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                        <Video size={16} className="text-blue-600" />
+                        画面回显
+                      </h3>
+                      <button
+                        onClick={toggleMonitorFullscreen}
+                        className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                        title={isMonitorFullscreen ? "退出全屏" : "全屏"}
+                      >
+                        {isMonitorFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                      </button>
+                    </div>
+                    <div className="w-full bg-[#0c0c0c] relative flex items-center justify-center group overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                      {/* Fallback Cover Image (Background) */}
+                      <img
+                        src={stream.coverUrl}
+                        className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale z-0"
+                        alt="Preview Background"
+                      />
 
-                  {/* Real Video Element */}
-                  <video
-                    ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover z-10"
-                    autoPlay
-                    playsInline
-                    muted
-                  />
+                      {/* Real Video Element */}
+                      <video
+                        ref={videoRef}
+                        className="absolute inset-0 w-full h-full object-cover z-10"
+                        autoPlay
+                        playsInline
+                        muted
+                      />
 
-                  {/* Text Overlay for Non-Camera Active Items */}
-                  {(() => {
-                    const activeItem = interactionsList.find(i => i.id === activeMainTrackId);
-                    if (activeItem) {
-                      return (
-                        <div className="absolute inset-0 bg-gray-900 z-20 flex flex-col items-center justify-center text-white p-8 text-center">
-                          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
-                            {activeItem.type === InteractionCategory.VIDEO ? <Video size={32} /> :
-                              activeItem.type === InteractionCategory.COURSE_SLICE ? <LayoutList size={32} /> :
-                                activeItem.type === InteractionCategory.GANDI_EMBED ? <Sparkles size={32} /> :
-                                  <Link2 size={32} />}
-                          </div>
-                          <h3 className="text-xl font-bold mb-2">{activeItem.title}</h3>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-white/20 rounded text-xs font-bold uppercase">{activeItem.type}</span>
-                            <span className="px-2 py-1 bg-green-500/80 rounded text-xs font-bold uppercase animate-pulse">LIVE</span>
-                          </div>
-                          <p className="mt-6 text-sm text-gray-400 max-w-[80%]">
-                            当前画面正在展示非摄像头内容，预览画面已隐藏
-                          </p>
+                      {/* Text Overlay for Non-Camera Active Items */}
+                      {(() => {
+                        const activeItem = interactionsList.find(i => i.id === activeMainTrackId);
+                        if (activeItem) {
+                          return (
+                            <div className="absolute inset-0 bg-gray-900 z-20 flex flex-col items-center justify-center text-white p-8 text-center">
+                              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
+                                {activeItem.type === InteractionCategory.VIDEO ? <Video size={32} /> :
+                                  activeItem.type === InteractionCategory.COURSE_SLICE ? <LayoutList size={32} /> :
+                                    activeItem.type === InteractionCategory.GANDI_EMBED ? <Sparkles size={32} /> :
+                                      <Link2 size={32} />}
+                              </div>
+                              <h3 className="text-xl font-bold mb-2">{activeItem.title}</h3>
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-white/20 rounded text-xs font-bold uppercase">{activeItem.type}</span>
+                                <span className="px-2 py-1 bg-green-500/80 rounded text-xs font-bold uppercase animate-pulse">LIVE</span>
+                              </div>
+                              <p className="mt-6 text-sm text-gray-400 max-w-[80%]">
+                                当前画面正在展示非摄像头内容，预览画面已隐藏
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {/* Error Message Overlay */}
+                      {mediaPermissionError && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center p-6 z-20">
+                          <AlertCircle size={32} className="text-amber-500 mb-2" />
+                          <p className="text-xs text-white font-bold mb-1">{mediaPermissionError}</p>
+                          <p className="text-[10px] text-gray-400">请检查浏览器权限设置或设备连接</p>
                         </div>
-                      );
-                    }
-                    return null;
-                  })()}
+                      )}
 
-                  {/* Error Message Overlay */}
-                  {mediaPermissionError && (
-                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center p-6 z-20">
-                      <AlertCircle size={32} className="text-amber-500 mb-2" />
-                      <p className="text-xs text-white font-bold mb-1">{mediaPermissionError}</p>
-                      <p className="text-[10px] text-gray-400">请检查浏览器权限设置或设备连接</p>
-                    </div>
-                  )}
-
-                  {/* Audio Visualizer Overlay */}
-                  <div className="absolute bottom-4 left-4 right-4 h-1.5 bg-gray-900/40 backdrop-blur rounded-full overflow-hidden flex items-center z-30 pointer-events-none">
-                    <Mic size={10} className="text-white/80 mr-2 flex-shrink-0 ml-1" />
-                    <div className="flex-1 h-full bg-gray-700/50 rounded-full relative overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 transition-all duration-75"
-                        style={{ width: `${Math.min(100, audioLevel * 150)}%` }}
-                      ></div>
+                      {/* Audio Visualizer Overlay */}
+                      <div className="absolute bottom-4 left-4 right-4 h-1.5 bg-gray-900/40 backdrop-blur rounded-full overflow-hidden flex items-center z-30 pointer-events-none">
+                        <Mic size={10} className="text-white/80 mr-2 flex-shrink-0 ml-1" />
+                        <div className="flex-1 h-full bg-gray-700/50 rounded-full relative overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 transition-all duration-75"
+                            style={{ width: `${Math.min(100, audioLevel * 150)}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Dynamic Content: Always show Controls, but maybe reset key to force re-render on session switch */}
-              <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
-                {(selectedSessionId || isLiveMode) ? (
-                  <>
-                    <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
-                      <LiveControlPanel key={`controls-${selectedSessionId || 'live'}`} />
-                    </div>
-                    <ObsControlPanel key={`obs-${selectedSessionId || 'live'}`} />
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                    <Settings2 size={48} className="mb-4 text-gray-200" />
-                    <p className="text-sm font-bold">暂无直播场次</p>
-                    <p className="text-xs mt-1">请在左侧新增场次</p>
+                  {/* Dynamic Content: Always show Controls, but maybe reset key to force re-render on session switch */}
+                  <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
+                    {(selectedSessionId || isLiveMode) ? (
+                      <>
+                        <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
+                          <LiveControlPanel key={`controls-${selectedSessionId || 'live'}`} />
+                        </div>
+                        <ObsControlPanel key={`obs-${selectedSessionId || 'live'}`} />
+                      </>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                        <Settings2 size={48} className="mb-4 text-gray-200" />
+                        <p className="text-sm font-bold">暂无直播场次</p>
+                        <p className="text-xs mt-1">请在左侧新增场次</p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      }
+                </>
+              )}
+            </div>
+          }
           right={
             <div className="h-full flex flex-col gap-6 overflow-hidden py-6 pr-6 pl-3">
               {(selectedSessionId || selectedHistoryId || isLiveMode) ? (
@@ -1285,88 +1287,93 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                       <Sparkles size={16} className="text-blue-600" />
                       直播功能开关 (Live Functions)
                     </h3>
-                      <div className="flex items-center gap-3 flex-wrap justify-start w-full">
-                        <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
-                          <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
-                          {interactions.danmaku && (
-                            <label className="flex items-center gap-1.5 px-2 py-1.5 select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="accent-blue-600 rounded-sm w-3.5 h-3.5"
-                                checked={interactions.weakenBackgroundAudio}
-                                onChange={() => toggleInteraction('weakenBackgroundAudio')}
-                              />
-                              <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
-                            </label>
-                          )}
-                        </div>
-                        <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
-                        <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
+                    <div className="flex items-center gap-3 flex-wrap justify-start w-full">
+                      <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
+                        <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
+                        {interactions.danmaku && (
+                          <label className="flex items-center gap-1.5 px-2 py-1.5 select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="accent-blue-600 rounded-sm w-3.5 h-3.5"
+                              checked={interactions.weakenBackgroundAudio}
+                              onChange={() => toggleInteraction('weakenBackgroundAudio')}
+                            />
+                            <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
+                          </label>
+                        )}
+                      </div>
+                      <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
+                      <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
+                      <InteractionToggle active={interactions.linkMic} onClick={() => toggleInteraction('linkMic')} icon={<Mic size={16} />} label="连麦" />
+                    </div>
+                  </div>
+
+                  {interactions.linkMic && (
+                    <LinkMicPanel onClose={() => toggleInteraction('linkMic')} />
+                  )}
+
+                  {/* Overlay Track - Moved Here */}
+                  {/* Unified Interaction List */}
+                  <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
+                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
+                        <List size={16} className="text-blue-600" />
+                        交互列表 {selectedHistoryId && '(历史回溯)'}
+                        {currentTemplateName && (
+                          <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
+                            - {currentTemplateName}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex gap-1.5 items-center">
+                        <button
+                          onClick={() => setIsTemplateModalOpen(true)}
+                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                          title="读取模板"
+                        >
+                          <FolderOpen size={14} />
+                        </button>
+
+                        {currentTemplateId && (
+                          <button
+                            onClick={handleSaveTemplate}
+                            className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                            title="保存模板"
+                          >
+                            <Save size={14} />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setIsSaveAsModalOpen(true)}
+                          className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                          title="另存为模板"
+                        >
+                          <Copy size={14} />
+                        </button>
+
+                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+
+                        <button
+                          onClick={() => handleAddInteraction()}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
+                          title="添加交互"
+                        >
+                          <Plus size={14} />
+                          <span className="text-xs font-bold">添加交互</span>
+                        </button>
+
+                        <div className="w-px h-3 bg-gray-200 mx-1"></div>
+
+                        <button
+                          onClick={handleClearInteractions}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                          title="清空"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
-
-                    {/* Overlay Track - Moved Here */}
-                    {/* Unified Interaction List */}
-                    <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
-                      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/30 sticky top-0 z-20 backdrop-blur-sm">
-                        <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                          <List size={16} className="text-blue-600" />
-                          交互列表 {selectedHistoryId && '(历史回溯)'}
-                          {currentTemplateName && (
-                            <span className="text-gray-400 text-xs ml-1 font-normal flex items-center gap-1">
-                              - {currentTemplateName}
-                            </span>
-                          )}
-                        </h3>
-                        <div className="flex gap-1.5 items-center">
-                          <button
-                            onClick={() => setIsTemplateModalOpen(true)}
-                            className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                            title="读取模板"
-                          >
-                            <FolderOpen size={14} />
-                          </button>
-
-                          {currentTemplateId && (
-                            <button
-                              onClick={handleSaveTemplate}
-                              className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                              title="保存模板"
-                            >
-                              <Save size={14} />
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => setIsSaveAsModalOpen(true)}
-                            className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                            title="另存为模板"
-                          >
-                            <Copy size={14} />
-                          </button>
-
-                          <div className="w-px h-3 bg-gray-200 mx-1"></div>
-
-                          <button
-                            onClick={() => handleAddInteraction()}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-blue-200"
-                            title="添加交互"
-                          >
-                            <Plus size={14} />
-                            <span className="text-xs font-bold">添加交互</span>
-                          </button>
-
-                          <div className="w-px h-3 bg-gray-200 mx-1"></div>
-
-                          <button
-                            onClick={handleClearInteractions}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                            title="清空"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
                       {Object.values(InteractionCategory).map(cat => {
