@@ -1,117 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, Video, Layout, PictureInPicture, Maximize, StopCircle, MicOff, VideoOff } from 'lucide-react';
-
-export const LiveControlPanel: React.FC = () => {
-    // Mode: 'NONE' | 'FULLSCREEN' | 'PIP'
-    const [cutInMode, setCutInMode] = useState<'NONE' | 'FULLSCREEN' | 'PIP'>('NONE');
-    const [audioSource, setAudioSource] = useState('default');
-    const [videoSource, setVideoSource] = useState('facetime');
-    const [isMicMuted, setIsMicMuted] = useState(false);
-    const [isCameraOff, setIsCameraOff] = useState(false);
-
-    const toggleMode = (mode: 'FULLSCREEN' | 'PIP') => {
-        if (cutInMode === mode) {
-            setCutInMode('NONE');
-        } else {
-            setCutInMode(mode);
-        }
-    };
-
-    return (
-        <div className="bg-gray-200/50 rounded-xl p-4 flex flex-col gap-4">
-            <div className="flex gap-4">
-                <div className={`flex-1 bg-white border rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition-colors relative ${isMicMuted ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                    {isMicMuted ? (
-                        <MicOff size={16} className="text-red-500 mr-2 shrink-0" />
-                    ) : (
-                        <Mic size={16} className="text-gray-500 mr-2 shrink-0" />
-                    )}
-                    <select
-                        className="flex-1 bg-transparent outline-none appearance-none cursor-pointer min-w-0"
-                        value={audioSource}
-                        onChange={(e) => setAudioSource(e.target.value)}
-                        disabled={isMicMuted}
-                    >
-                        <option value="default">默认麦克风 (Default)</option>
-                        <option value="external">外接麦克风 (External USB)</option>
-                        <option value="system">系统内录 (System Audio)</option>
-                    </select>
-                    <button
-                        onClick={() => setIsMicMuted(!isMicMuted)}
-                        className={`ml-2 p-1.5 rounded-md transition-all ${isMicMuted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
-                        title={isMicMuted ? "开启麦克风" : "关闭麦克风"}
-                    >
-                        {isMicMuted ? <MicOff size={14} /> : <Mic size={14} />}
-                    </button>
-                </div>
-                <div className={`flex-1 bg-white border rounded-lg flex items-center px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition-colors relative ${isCameraOff ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                    {isCameraOff ? (
-                        <VideoOff size={16} className="text-red-500 mr-2 shrink-0" />
-                    ) : (
-                        <Video size={16} className="text-gray-500 mr-2 shrink-0" />
-                    )}
-                    <select
-                        className="flex-1 bg-transparent outline-none appearance-none cursor-pointer min-w-0"
-                        value={videoSource}
-                        onChange={(e) => setVideoSource(e.target.value)}
-                        disabled={isCameraOff}
-                    >
-                        <option value="facetime">FaceTime HD Camera</option>
-                        <option value="obs">OBS Virtual Camera</option>
-                        <option value="capture">采集卡 (Capture Card)</option>
-                    </select>
-                    <button
-                        onClick={() => setIsCameraOff(!isCameraOff)}
-                        className={`ml-2 p-1.5 rounded-md transition-all ${isCameraOff ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
-                        title={isCameraOff ? "开启摄像头" : "关闭摄像头"}
-                    >
-                        {isCameraOff ? <VideoOff size={14} /> : <Video size={14} />}
-                    </button>
-                </div>
-            </div>
-            <div className="flex gap-4">
-                <button
-                    onClick={() => toggleMode('FULLSCREEN')}
-                    className={`flex-1 py-3 rounded-lg font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 ${cutInMode === 'FULLSCREEN'
-                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
-                        }`}
-                >
-                    {cutInMode === 'FULLSCREEN' ? (
-                        <>
-                            <StopCircle size={16} />
-                            停止全屏
-                        </>
-                    ) : (
-                        <>
-                            <Maximize size={16} />
-                            全屏切入
-                        </>
-                    )}
-                </button>
-                <button
-                    onClick={() => toggleMode('PIP')}
-                    className={`flex-1 py-3 rounded-lg font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 ${cutInMode === 'PIP'
-                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
-                        }`}
-                >
-                    {cutInMode === 'PIP' ? (
-                        <>
-                            <StopCircle size={16} />
-                            停止画中画
-                        </>
-                    ) : (
-                        <>
-                            <PictureInPicture size={16} />
-                            画中画切入
-                        </>
-                    )}
-                </button>
-            </div>
-        </div>
-    );
-};
+import { Layout, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Types for OBS Scene Data
 interface ObsTransform {
@@ -148,7 +36,12 @@ interface ObsScene {
     items: ObsSceneItem[];
 }
 
-export const ObsControlPanel: React.FC = () => {
+interface ObsControlPanelProps {
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
+}
+
+export const ObsControlPanel: React.FC<ObsControlPanelProps> = ({ isCollapsed = false, onToggleCollapse }) => {
     const [activeTab, setActiveTab] = useState<'OBS' | 'OTHER'>('OBS');
     const [activeSceneName, setActiveSceneName] = useState<string>('场景');
     const [programSceneName, setProgramSceneName] = useState<string>('场景'); // The currently live scene
@@ -251,24 +144,36 @@ export const ObsControlPanel: React.FC = () => {
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex items-center gap-6 border-b border-gray-200 px-2 shrink-0">
-                <button
-                    onClick={() => setActiveTab('OBS')}
-                    className={`py-3 text-xs font-black uppercase tracking-widest relative ${activeTab === 'OBS' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                    OBS 场景
-                    {activeTab === 'OBS' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
-                </button>
-                <button
-                    onClick={() => setActiveTab('OTHER')}
-                    className={`py-3 text-xs font-black uppercase tracking-widest relative ${activeTab === 'OTHER' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                    其他设置
-                    {activeTab === 'OTHER' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
-                </button>
+            <div className="flex items-center justify-between border-b border-gray-200 px-2 shrink-0">
+                <div className="flex items-center gap-6">
+                    <button
+                        onClick={() => setActiveTab('OBS')}
+                        className={`py-3 text-xs font-black uppercase tracking-widest relative ${activeTab === 'OBS' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        OBS 场景
+                        {activeTab === 'OBS' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('OTHER')}
+                        className={`py-3 text-xs font-black uppercase tracking-widest relative ${activeTab === 'OTHER' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        其他设置
+                        {activeTab === 'OTHER' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
+                    </button>
+                </div>
+                {onToggleCollapse && (
+                    <button
+                        onClick={onToggleCollapse}
+                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title={isCollapsed ? "展开" : "折叠"}
+                    >
+                        {isCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                )}
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            {!isCollapsed && (
+                <div className="flex-1 overflow-hidden">
                 {activeTab === 'OBS' ? (
                     isConnected ? (
                         <div className="h-full flex flex-col p-3">
@@ -493,6 +398,7 @@ export const ObsControlPanel: React.FC = () => {
                     </div>
                 )}
             </div>
+            )}
         </div>
     );
 };

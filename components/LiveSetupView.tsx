@@ -11,6 +11,8 @@ import {
   Minimize2,
   Mic,
   Video,
+  MicOff,
+  VideoOff,
   Monitor,
   Info,
   Users,
@@ -49,13 +51,13 @@ import {
   FileStack,
   RefreshCcw,
   StopCircle,
-  Calendar
+  Calendar,
+  Settings
 } from 'lucide-react';
 import { LiveStream, LiveType, InteractionCategory, InteractiveResource, InteractionItem, LiveSession, LiveHistoryItem, PlaybackMethod } from '../types';
 import { HistoryCard, HistoryListModal, PlaybackConfigModal } from './LiveHistoryComponents';
 import { COMMON_LABELS } from '../App';
 import LiveSessionModal from './LiveSessionModal';
-import LiveSessionForm from './LiveSessionForm';
 import CreateLiveModal from './CreateLiveModal';
 import LiveSessionList from './LiveSessionList';
 import StudentTimeStream from './StudentTimeStream';
@@ -84,8 +86,9 @@ import {
   ConfirmModal,
   ResizableLayout
 } from './LiveSetupComponents';
-import { LiveControlPanel, ObsControlPanel } from './LiveStreamControls';
+import { ObsControlPanel } from './LiveStreamControls';
 import { LinkMicPanel } from './LinkMicPanel';
+import { liveAuthService } from '../services/LiveAuthService';
 
 interface LiveSetupViewProps {
   stream: LiveStream;
@@ -334,6 +337,98 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [selectedCam, setSelectedCam] = useState('FaceTime HD Camera');
   const [selectedScreen, setSelectedScreen] = useState('不共享');
 
+  // Lifted States for Controls
+  const [cutInMode, setCutInMode] = useState<'NONE' | 'FULLSCREEN' | 'PIP'>('NONE');
+  const [audioSource, setAudioSource] = useState('default');
+  const [videoSource, setVideoSource] = useState('facetime');
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isObsCollapsed, setIsObsCollapsed] = useState(false);
+
+  // --- Auth Flow Logic ---
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+  const [authModalType, setAuthModalType] = useState<'NONE' | 'LOGIN' | 'CONFLICT' | 'NO_PERMISSION'>('NONE');
+  const [authConflictInfo, setAuthConflictInfo] = useState<any>(null);
+  const [authStudentId, setAuthStudentId] = useState('');
+  const [hasPassedAuth, setHasPassedAuth] = useState(false);
+
+  const checkAuthStatus = async () => {
+    setIsCheckingAuth(true);
+    try {
+      // 1. Check Token
+      const hasToken = liveAuthService.checkToken();
+      if (!hasToken) {
+        setAuthModalType('LOGIN');
+        setHasPassedAuth(false);
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      // 2. Check Permission
+      const sessionId = selectedSessionId || 'default-session';
+      const hasPermission = await liveAuthService.checkPermission(sessionId);
+
+      if (hasPermission) {
+        // Success
+        setAuthModalType('NONE');
+        setHasPassedAuth(true);
+      } else {
+        setHasPassedAuth(false);
+        // 3. Check Conflict
+        const conflictResult = await liveAuthService.checkConflict(sessionId);
+        if (conflictResult.code === 'CONFLICT') {
+          setAuthConflictInfo(conflictResult.conflictInfo);
+          setAuthModalType('CONFLICT');
+        } else {
+          setAuthModalType('NO_PERMISSION');
+        }
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      // alert("鉴权服务异常，请稍后重试"); // Don't alert on auto-check
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  // Initial check on mount or session change
+  useEffect(() => {
+    checkAuthStatus();
+  }, [selectedSessionId]);
+
+  const handleEnterRoom = async () => {
+    if (hasPassedAuth) {
+      setupMedia();
+    } else {
+      checkAuthStatus();
+    }
+  };
+
+  const handleAuthLogin = async () => {
+    if (!authStudentId.trim()) return;
+    setIsCheckingAuth(true);
+    await liveAuthService.login(authStudentId);
+    // Retry check
+    await checkAuthStatus();
+  };
+
+  const handleAuthRegister = async (dropConflict: boolean) => {
+    setIsCheckingAuth(true);
+    const sessionId = selectedSessionId || 'default-session';
+    await liveAuthService.registerClass(sessionId, dropConflict);
+    // Retry check
+    await checkAuthStatus();
+  };
+  // -----------------------
+
+  const toggleCutInMode = (mode: 'FULLSCREEN' | 'PIP') => {
+    if (cutInMode === mode) {
+      setCutInMode('NONE');
+    } else {
+      setCutInMode(mode);
+    }
+  };
+
   // Audience Configuration
   const [audienceMode, setAudienceMode] = useState<AudienceMode>('CLASS');
   const [selectedItems, setSelectedItems] = useState<Record<AudienceMode, string[]>>({
@@ -347,6 +442,7 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   const [interactions, setInteractions] = useState({
     danmaku: true,
     weakenBackgroundAudio: false, // New sub-switch state
+    confirmDanmaku: false, // New sub-switch state: confirm before sending
     im: true,
     team: false,
     linkMic: false,
@@ -912,6 +1008,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
         linkedLessonName: sessionData.linkedLessonName,
         visibleAudience: sessionData.visibleAudience || [],
         audienceMode: sessionData.audienceMode,
+        // Late Config
+        latePolicy: sessionData.latePolicy,
+        lateTime: sessionData.lateTime,
+        lateBlockMessage: sessionData.lateBlockMessage,
         // Initialize other fields
         configuredInteractions: [],
         mediaConfig: undefined,
@@ -930,74 +1030,70 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   return (
     <div className="flex flex-col h-full bg-[#F0F2F5]">
       {/* Toolbar */}
-      <div className={`border-b px-6 py-3 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 ${isLiveMode ? (isTestLive ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100') : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-4 min-w-0">
+      <div className={`border-b px-3 py-1.5 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 ${isLiveMode ? (isTestLive ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100') : 'bg-white border-gray-200'}`}>
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors flex items-center gap-1 font-medium text-sm"
+            className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors flex items-center gap-0.5 font-medium text-[10px]"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={14} />
             退出
           </button>
-          <div className="h-4 w-px bg-gray-200 mx-2"></div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-lg font-bold text-gray-800 truncate max-w-[360px]">
+          <div className="h-3 w-px bg-gray-200 mx-1"></div>
+          <div className="flex flex-col min-w-0 justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h2 className="text-xs font-bold text-gray-800 truncate max-w-[300px]">
                 {stream.name}
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-black border border-gray-200 bg-white text-gray-600 whitespace-nowrap">
-                {stream.type === LiveType.COURSE ? '课程直播' : '普通直播'}
+              <span className="px-1 py-0.5 rounded-full text-[9px] font-black border border-gray-200 bg-white text-gray-600 whitespace-nowrap leading-none">
+                {stream.type === LiveType.COURSE ? '课程' : '普通'}
               </span>
               {!isLiveMode && (
                 <button
                   onClick={() => setIsEditModalOpen(true)}
-                  className="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors whitespace-nowrap"
+                  className="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors whitespace-nowrap leading-none"
                 >
-                  编辑信息
+                  编辑
                 </button>
               )}
-            </div>
-            <div className="text-xs text-gray-500 truncate max-w-[520px]">
-              {stream.description || '暂无描述'}
             </div>
           </div>
         </div>
 
         {/* Playback/Live Controls */}
-        {/* Playback/Live Controls */}
         {isLiveMode && (
-          <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-3 w-3">
+          <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isTestLive ? 'bg-orange-400' : 'bg-red-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-3 w-3 ${isTestLive ? 'bg-orange-500' : 'bg-red-500'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isTestLive ? 'bg-orange-500' : 'bg-red-500'}`}></span>
               </span>
-              <span className={`${isTestLive ? 'text-orange-500' : 'text-red-500'} font-black text-sm uppercase tracking-wider`}>
-                {isTestLive ? '直播测试' : '直播中'}
+              <span className={`${isTestLive ? 'text-orange-500' : 'text-red-500'} font-black text-[10px] uppercase tracking-wider`}>
+                {isTestLive ? '测试中' : '直播中'}
               </span>
-              <div className="w-px h-4 bg-gray-300 mx-2" />
-              <div className="font-mono text-xl font-bold text-gray-800">00:12:45</div>
+              <div className="w-px h-3 bg-gray-300 mx-1" />
+              <div className="font-mono text-sm font-bold text-gray-800">00:12:45</div>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-3 relative">
+        <div className="flex items-center gap-2 relative">
           {isLiveMode ? (
             <>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 transition-all flex items-center gap-2 text-sm font-bold shadow-sm"
+                className="px-2 py-1 rounded-md border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 transition-all flex items-center gap-1 text-[10px] font-bold shadow-sm"
               >
-                <RefreshCcw size={16} /> 全量刷新
+                <RefreshCcw size={12} /> 全量刷新
               </button>
               <button
                 onClick={() => {
                   setIsLiveMode(false);
                   setIsTestLive(false);
                 }}
-                className={`px-6 py-2 rounded-lg text-white transition-all shadow-lg flex items-center gap-2 text-sm font-bold active:scale-95 ${isTestLive ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-100' : 'bg-red-600 hover:bg-red-700 shadow-red-100'}`}
+                className={`px-3 py-1 rounded-md text-white transition-all shadow-sm flex items-center gap-1 text-[10px] font-bold active:scale-95 ${isTestLive ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-100' : 'bg-red-600 hover:bg-red-700 shadow-red-100'}`}
               >
-                <StopCircle size={16} fill="currentColor" /> {isTestLive ? '结束测试' : '停止直播'}
+                <StopCircle size={12} fill="currentColor" /> {isTestLive ? '结束' : '停止'}
               </button>
             </>
           ) : (
@@ -1005,10 +1101,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
               <button
                 onClick={() => setIsTestLiveModalOpen(true)}
-                className="px-4 py-2 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all flex items-center gap-2 text-sm font-bold"
+                className="px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all flex items-center gap-1.5 text-xs font-bold"
               >
-                <TestTube2 size={16} />
-                直播测试
+                <TestTube2 size={14} />
+                测试
               </button>
               {/* Tooltip Wrapper */}
               <div
@@ -1023,12 +1119,12 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     }
                   }}
                   disabled={!startLiveValidation.valid}
-                  className={`px-6 py-2 rounded-lg transition-all shadow-lg flex items-center gap-2 text-sm font-bold active:scale-95 ${!startLiveValidation.valid
+                  className={`px-4 py-1.5 rounded-lg transition-all shadow-lg flex items-center gap-1.5 text-xs font-bold active:scale-95 ${!startLiveValidation.valid
                     ? 'bg-gray-300 text-white cursor-not-allowed shadow-none'
                     : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100'
                     }`}
                 >
-                  <Play size={16} fill="white" />
+                  <Play size={14} fill="white" />
                   开始直播
                 </button>
                 {/* Custom Tooltip for better visibility if browser tooltip is not enough */}
@@ -1178,18 +1274,74 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     ref={monitorCardRef}
                     className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col shrink-0"
                   >
-                    <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                      <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
-                        <Video size={16} className="text-blue-600" />
-                        画面回显
-                      </h3>
-                      <button
-                        onClick={toggleMonitorFullscreen}
-                        className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
-                        title={isMonitorFullscreen ? "退出全屏" : "全屏"}
-                      >
-                        {isMonitorFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                      </button>
+                    <div className="p-3 border-b border-gray-50 flex justify-between items-center bg-white">
+                      <div className="flex items-center gap-4 flex-1">
+                        {/* Integrated Controls */}
+                        <div className="flex items-center gap-2">
+                          {/* Audio Control */}
+                          <div className={`flex items-center px-2 py-1.5 rounded-lg border text-xs font-bold transition-colors ${isMicMuted ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}>
+                            <button
+                              onClick={() => setIsMicMuted(!isMicMuted)}
+                              className={`mr-1.5 p-0.5 rounded hover:bg-black/5 transition-colors ${isMicMuted ? 'text-red-500' : 'text-gray-500'}`}
+                              title={isMicMuted ? "开启麦克风" : "关闭麦克风"}
+                            >
+                              {isMicMuted ? <MicOff size={14} /> : <Mic size={14} />}
+                            </button>
+                            <select
+                              className="bg-transparent outline-none appearance-none cursor-pointer min-w-[100px] max-w-[140px] truncate"
+                              value={audioSource}
+                              onChange={(e) => setAudioSource(e.target.value)}
+                              disabled={isMicMuted}
+                            >
+                              <option value="default">默认麦克风</option>
+                              <option value="external">外接麦克风</option>
+                              <option value="system">系统内录</option>
+                            </select>
+                            <ChevronDown size={12} className="text-gray-400 ml-1" />
+                          </div>
+
+                          {/* Video Control */}
+                          <div className={`flex items-center px-2 py-1.5 rounded-lg border text-xs font-bold transition-colors ${isCameraOff ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}>
+                            <button
+                              onClick={() => setIsCameraOff(!isCameraOff)}
+                              className={`mr-1.5 p-0.5 rounded hover:bg-black/5 transition-colors ${isCameraOff ? 'text-red-500' : 'text-gray-500'}`}
+                              title={isCameraOff ? "开启摄像头" : "关闭摄像头"}
+                            >
+                              {isCameraOff ? <VideoOff size={14} /> : <Video size={14} />}
+                            </button>
+                            <select
+                              className="bg-transparent outline-none appearance-none cursor-pointer min-w-[100px] max-w-[140px] truncate"
+                              value={videoSource}
+                              onChange={(e) => setVideoSource(e.target.value)}
+                              disabled={isCameraOff}
+                            >
+                              <option value="facetime">FaceTime HD</option>
+                              <option value="obs">OBS Virtual</option>
+                              <option value="capture">采集卡</option>
+                            </select>
+                            <ChevronDown size={12} className="text-gray-400 ml-1" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <button
+                            onClick={handleEnterRoom}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-1.5 rounded-lg shadow-sm shadow-blue-200 transition-all active:scale-95"
+                          >
+                            {isCheckingAuth ? '验证中...' : '进入房间'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={toggleMonitorFullscreen}
+                          className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                          title={isMonitorFullscreen ? "退出全屏" : "全屏"}
+                        >
+                          {isMonitorFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                        </button>
+                      </div>
                     </div>
                     <div className="w-full bg-[#0c0c0c] relative flex items-center justify-center group overflow-hidden" style={{ aspectRatio: '16/9' }}>
                       {/* Fallback Cover Image (Background) */}
@@ -1207,6 +1359,103 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         playsInline
                         muted
                       />
+
+                      {/* Auth UI Overlay */}
+                      {authModalType !== 'NONE' && (
+                        <div className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
+
+                          {/* Login UI */}
+                          {authModalType === 'LOGIN' && (
+                            <div className="w-full max-w-[280px] flex flex-col items-center">
+                              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                                <UserCircle size={20} />
+                              </div>
+                              <h3 className="text-base font-black text-gray-900">登录账号</h3>
+                              <p className="text-[10px] text-gray-500 mt-1 mb-4 text-center">请输入学号以验证观看权限</p>
+
+                              <input
+                                type="text"
+                                value={authStudentId}
+                                onChange={(e) => setAuthStudentId(e.target.value)}
+                                placeholder="请输入学号"
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:border-blue-500 focus:bg-white outline-none transition-all mb-3 text-center"
+                                autoFocus
+                              />
+                              <button
+                                onClick={handleAuthLogin}
+                                disabled={!authStudentId.trim() || isCheckingAuth}
+                                className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                              >
+                                {isCheckingAuth ? '登录中...' : '登录并进入'}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Conflict UI */}
+                          {authModalType === 'CONFLICT' && (
+                            <div className="w-full max-w-[320px] flex flex-col items-center">
+                              <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mb-3">
+                                <AlertCircle size={20} />
+                              </div>
+                              <h3 className="text-base font-black text-gray-900">课程冲突</h3>
+
+                              <div className="bg-orange-50 rounded-lg p-3 my-3 border border-orange-100 w-full text-center">
+                                <div className="text-[10px] text-orange-800 font-bold mb-0.5">检测到冲突课程</div>
+                                <div className="text-xs font-black text-gray-900 truncate">
+                                  {authConflictInfo?.conflictingClassName} {authConflictInfo?.conflictingLessonName}
+                                </div>
+                                <div className="text-[10px] text-gray-600 truncate mt-0.5">{authConflictInfo?.conflictingCourseName}</div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 w-full">
+                                <button
+                                  onClick={() => handleAuthRegister(true)}
+                                  disabled={isCheckingAuth}
+                                  className="w-full py-2 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 transition-all disabled:opacity-50"
+                                >
+                                  {isCheckingAuth ? '处理中...' : '退订冲突课程并注册直播课程'}
+                                </button>
+                                <button
+                                  onClick={() => setAuthModalType('LOGIN')}
+                                  className="w-full py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all"
+                                >
+                                  换号登录
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* No Permission UI */}
+                          {authModalType === 'NO_PERMISSION' && (
+                            <div className="w-full max-w-[320px] flex flex-col items-center">
+                              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                                <BookOpen size={20} />
+                              </div>
+                              <h3 className="text-base font-black text-gray-900">未报名</h3>
+
+                              <div className="bg-blue-50 rounded-lg p-3 my-3 border border-blue-100 w-full text-center">
+                                <div className="text-xs font-bold text-blue-800">当前账号无直播关联课程权限</div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 w-full">
+                                <button
+                                  onClick={() => handleAuthRegister(false)}
+                                  disabled={isCheckingAuth}
+                                  className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                                >
+                                  {isCheckingAuth ? '报名中...' : '注册课程'}
+                                </button>
+                                <button
+                                  onClick={() => setAuthModalType('LOGIN')}
+                                  className="w-full py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all"
+                                >
+                                  换号登录
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Text Overlay for Non-Camera Active Items */}
                       {(() => {
@@ -1254,16 +1503,60 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         </div>
                       </div>
                     </div>
+
+                    {/* Cut-In Controls Footer */}
+                    <div className="p-3 flex gap-3 bg-white border-t border-gray-50">
+                      <button
+                        onClick={() => toggleCutInMode('FULLSCREEN')}
+                        className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 ${cutInMode === 'FULLSCREEN'
+                          ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                          }`}
+                      >
+                        {cutInMode === 'FULLSCREEN' ? (
+                          <>
+                            <StopCircle size={16} />
+                            停止全屏
+                          </>
+                        ) : (
+                          <>
+                            <Maximize2 size={16} />
+                            全屏切入
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => toggleCutInMode('PIP')}
+                        className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 ${cutInMode === 'PIP'
+                          ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                          }`}
+                      >
+                        {cutInMode === 'PIP' ? (
+                          <>
+                            <StopCircle size={16} />
+                            停止画中画
+                          </>
+                        ) : (
+                          <>
+                            <PictureInPicture2 size={16} />
+                            画中画切入
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Dynamic Content: Always show Controls, but maybe reset key to force re-render on session switch */}
-                  <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100">
+                  <div className={`${isObsCollapsed ? 'h-auto shrink-0' : 'flex-1 overflow-hidden'} flex flex-col bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 transition-all duration-300`}>
                     {(selectedSessionId || isLiveMode) ? (
                       <>
-                        <div className="p-4 border-b border-gray-50 flex flex-col gap-4">
-                          <LiveControlPanel key={`controls-${selectedSessionId || 'live'}`} />
-                        </div>
-                        <ObsControlPanel key={`obs-${selectedSessionId || 'live'}`} />
+                        {/* Removed LiveControlPanel, controls moved to header */}
+                        <ObsControlPanel
+                          key={`obs-${selectedSessionId || 'live'}`}
+                          isCollapsed={isObsCollapsed}
+                          onToggleCollapse={() => setIsObsCollapsed(!isObsCollapsed)}
+                        />
                       </>
                     ) : (
                       <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
@@ -1281,35 +1574,45 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
             <div className="h-full flex flex-col gap-6 overflow-hidden py-6 pr-6 pl-3">
               {(selectedSessionId || selectedHistoryId || isLiveMode) ? (
                 <>
-                  {/* Fixed Functions */}
-                  <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 px-6 py-4 flex flex-col items-start gap-3">
-                    <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide whitespace-nowrap">
-                      <Sparkles size={16} className="text-blue-600" />
-                      直播功能开关 (Live Functions)
-                    </h3>
-                    <div className="flex items-center gap-3 flex-wrap justify-start w-full">
-                      <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg border border-gray-100">
+                  {interactions.linkMic ? (
+                    <LinkMicPanel onClose={() => toggleInteraction('linkMic')} />
+                  ) : (
+                    /* Fixed Functions */
+                    <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-2 flex items-center gap-2 flex-wrap">
+                      {/* Danmaku Group */}
+                      <div className={`flex items-center gap-1 p-1 rounded-lg border transition-all duration-300 shrink-0 ${interactions.danmaku ? 'bg-blue-50 border-blue-100 pr-2' : 'bg-gray-50 border-gray-100'}`}>
                         <InteractionToggle active={interactions.danmaku} onClick={() => toggleInteraction('danmaku')} icon={<MessageSquare size={16} />} label="弹幕" />
+
                         {interactions.danmaku && (
-                          <label className="flex items-center gap-1.5 px-2 py-1.5 select-none hover:bg-gray-200 rounded-md transition-colors animate-in fade-in slide-in-from-left-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="accent-blue-600 rounded-sm w-3.5 h-3.5"
-                              checked={interactions.weakenBackgroundAudio}
-                              onChange={() => toggleInteraction('weakenBackgroundAudio')}
-                            />
-                            <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">弱化背景音</span>
-                          </label>
+                          <div className="flex items-center gap-2 ml-1 border-l border-blue-200 pl-2 animate-in fade-in slide-in-from-left-2">
+                            <label className="flex items-center gap-1 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                className="accent-blue-600 rounded-sm w-3 h-3 cursor-pointer"
+                                checked={interactions.weakenBackgroundAudio}
+                                onChange={() => toggleInteraction('weakenBackgroundAudio')}
+                              />
+                              <span className="text-[10px] font-bold text-blue-600/80 group-hover:text-blue-700 whitespace-nowrap">弱化背景音</span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                className="accent-blue-600 rounded-sm w-3 h-3 cursor-pointer"
+                                checked={interactions.confirmDanmaku}
+                                onChange={() => toggleInteraction('confirmDanmaku')}
+                              />
+                              <span className="text-[10px] font-bold text-blue-600/80 group-hover:text-blue-700 whitespace-nowrap">发送前确认</span>
+                            </label>
+                          </div>
                         )}
                       </div>
+
+                      <div className="w-px h-6 bg-gray-100 mx-1 shrink-0"></div>
+
                       <InteractionToggle active={interactions.im} onClick={() => toggleInteraction('im')} icon={<Link2 size={16} />} label="IM" />
                       <InteractionToggle active={interactions.team} onClick={() => toggleInteraction('team')} icon={<Users size={16} />} label="战队面板" />
                       <InteractionToggle active={interactions.linkMic} onClick={() => toggleInteraction('linkMic')} icon={<Mic size={16} />} label="连麦" />
                     </div>
-                  </div>
-
-                  {interactions.linkMic && (
-                    <LinkMicPanel onClose={() => toggleInteraction('linkMic')} />
                   )}
 
                   {/* Overlay Track - Moved Here */}
