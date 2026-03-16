@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Trash2, ImageIcon, GraduationCap, BookOpen, UserCircle, Hash, FileSpreadsheet, Download } from 'lucide-react';
+import { X, Trash2, ImageIcon, GraduationCap, BookOpen, UserCircle, Hash, FileSpreadsheet, Download, AlertCircle } from 'lucide-react';
 import { LiveSession, LiveType } from '../types';
 import { CascadingSearchSelector, SearchableMultiSelect, TagItem, ModeTab, DB } from './LiveSetupComponents';
 
@@ -28,7 +28,11 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
         linkedLessonId: '',
         linkedLessonName: '',
         visibleAudience: [],
-        audienceMode: 'CLASS'
+        audienceMode: 'CLASS',
+        // Late Config
+        latePolicy: 'unlimited',
+        lateTime: 10,
+        lateBlockMessage: ''
     };
 
     const [sessionData, setSessionData] = useState<Partial<LiveSession>>(defaultState);
@@ -36,7 +40,14 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            setSessionData(initialData || defaultState);
+            setSessionData({
+                ...defaultState,
+                ...initialData,
+                // Ensure late config defaults if not present
+                latePolicy: initialData?.latePolicy || 'unlimited',
+                lateTime: initialData?.lateTime || 10,
+                lateBlockMessage: initialData?.lateBlockMessage || ''
+            });
         }
     }, [isOpen, initialData]);
 
@@ -175,6 +186,7 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                     )}
 
                     {liveType === LiveType.COURSE && (
+                        <>
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-gray-700">关联课节 <span className="text-red-500">*</span></label>
                             <CascadingSearchSelector
@@ -186,6 +198,125 @@ const LiveSessionModal: React.FC<LiveSessionModalProps> = ({
                                 </div>
                             )}
                         </div>
+
+                        {/* Late Configuration Section (Only for Course Live) */}
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                            <label className="text-xs font-bold text-gray-700">迟到配置</label>
+                            
+                            <div className="space-y-3">
+                                {/* Option 1: Unlimited */}
+                                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${sessionData.latePolicy === 'unlimited' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input
+                                        type="radio"
+                                        name="latePolicy"
+                                        value="unlimited"
+                                        checked={sessionData.latePolicy === 'unlimited'}
+                                        onChange={() => setSessionData(prev => ({ ...prev, latePolicy: 'unlimited' }))}
+                                        className="mt-1 w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                    />
+                                    <div>
+                                        <div className="text-sm font-bold text-gray-900">无限制</div>
+                                        <div className="text-[10px] text-gray-500 mt-0.5">学生可随时进入直播间</div>
+                                    </div>
+                                </label>
+
+                                {/* Option 2: Block */}
+                                <div className={`rounded-xl border transition-all ${sessionData.latePolicy === 'block' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <label className="flex items-start gap-3 p-3 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="latePolicy"
+                                            value="block"
+                                            checked={sessionData.latePolicy === 'block'}
+                                            onChange={() => setSessionData(prev => ({ ...prev, latePolicy: 'block' }))}
+                                            className="mt-1 w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                        />
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900">迟到拦截</div>
+                                            <div className="text-[10px] text-gray-500 mt-0.5">
+                                                迟到 <span className="font-bold text-blue-600">{sessionData.lateTime}</span> 分钟后的学生不可进入直播间；按时进入的学生可以重复进入，不受影响
+                                            </div>
+                                        </div>
+                                    </label>
+                                    
+                                    {sessionData.latePolicy === 'block' && (
+                                        <div className="px-3 pb-3 pl-9 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-600">迟到时长设置：</span>
+                                                <div className="relative w-20">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={sessionData.lateTime}
+                                                        onChange={(e) => setSessionData(prev => ({ ...prev, lateTime: Math.max(1, parseInt(e.target.value) || 0) }))}
+                                                        className="w-full pl-2 pr-6 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-200 focus:border-blue-500 outline-none"
+                                                    />
+                                                    <span className="absolute right-2 top-1 text-[10px] text-gray-400">分钟</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-medium text-gray-600">迟到提示文案</label>
+                                                <div className="relative">
+                                                    <textarea
+                                                        rows={2}
+                                                        maxLength={200}
+                                                        value={sessionData.lateBlockMessage}
+                                                        onChange={(e) => setSessionData(prev => ({ ...prev, lateBlockMessage: e.target.value }))}
+                                                        placeholder="请输入迟到拦截提示文案"
+                                                        className="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none"
+                                                    />
+                                                    <span className="absolute bottom-1 right-2 text-[10px] text-gray-400">{(sessionData.lateBlockMessage || '').length}/200</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Option 3: Record */}
+                                <div className={`rounded-xl border transition-all ${sessionData.latePolicy === 'record' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <label className="flex items-start gap-3 p-3 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="latePolicy"
+                                            value="record"
+                                            checked={sessionData.latePolicy === 'record'}
+                                            onChange={() => setSessionData(prev => ({ ...prev, latePolicy: 'record' }))}
+                                            className="mt-1 w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                        />
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900">迟到后进入录播课</div>
+                                            <div className="text-[10px] text-gray-500 mt-0.5">
+                                                迟到 <span className="font-bold text-blue-600">{sessionData.lateTime}</span> 分钟后的学生会直接进入录播课；按时进入直播的学生可以重复进入直播间，不受影响
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    {sessionData.latePolicy === 'record' && (
+                                        <div className="px-3 pb-3 pl-9 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-600">迟到时长设置：</span>
+                                                <div className="relative w-20">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={sessionData.lateTime}
+                                                        onChange={(e) => setSessionData(prev => ({ ...prev, lateTime: Math.max(1, parseInt(e.target.value) || 0) }))}
+                                                        className="w-full pl-2 pr-6 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-200 focus:border-blue-500 outline-none"
+                                                    />
+                                                    <span className="absolute right-2 top-1 text-[10px] text-gray-400">分钟</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-1.5 bg-blue-50 p-2 rounded text-[10px] text-blue-700">
+                                                <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+                                                <span>进入录播课课程节名称展示：录播课班级名 + 课节名</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        </>
                     )}
 
                     {liveType === LiveType.ORDINARY && (

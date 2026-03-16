@@ -174,25 +174,14 @@ const StudentTimeStream: React.FC = () => {
     return (
         <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col h-full overflow-hidden">
             {/* Stats Panel */}
-            <div className="grid grid-cols-2 gap-4 p-4 border-b border-gray-100 bg-gradient-to-br from-blue-50/50 to-white flex-shrink-0">
-                <div className="bg-white p-3 rounded-xl border border-blue-100 shadow-sm relative overflow-hidden group">
-                    <div className="absolute right-2 top-2 p-1.5 bg-blue-50 rounded-lg text-blue-500 group-hover:scale-110 transition-transform">
-                        <Users size={16} />
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">当前在线</div>
-                    <div className="text-2xl font-black text-gray-900 flex items-baseline gap-1">
-                        342
-
-                    </div>
+            <div className="flex items-center justify-between gap-2 p-2 border-b border-gray-100 bg-gradient-to-br from-blue-50/50 to-white flex-shrink-0">
+                <div className="flex-1 bg-white px-2 py-1.5 rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">当前在线</div>
+                    <div className="text-sm font-black text-gray-900">342</div>
                 </div>
-                <div className="bg-white p-3 rounded-xl border border-purple-100 shadow-sm relative overflow-hidden group">
-                    <div className="absolute right-2 top-2 p-1.5 bg-purple-50 rounded-lg text-purple-500 group-hover:scale-110 transition-transform">
-                        <Clock size={16} />
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">本场累计人数</div>
-                    <div className="text-2xl font-black text-gray-900 flex items-baseline gap-1">
-                        1,205
-                    </div>
+                <div className="flex-1 bg-white px-2 py-1.5 rounded-lg border border-purple-100 shadow-sm flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">本场累计</div>
+                    <div className="text-sm font-black text-gray-900">1,205</div>
                 </div>
             </div>
 
@@ -200,7 +189,7 @@ const StudentTimeStream: React.FC = () => {
             <div className="flex items-center border-b border-gray-100 bg-white shrink-0">
                 <button
                     onClick={() => setActiveTab('STREAM')}
-                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'STREAM' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'STREAM' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <Clock size={14} className={activeTab === 'STREAM' ? "text-blue-600" : "text-gray-400"} />
@@ -208,10 +197,10 @@ const StudentTimeStream: React.FC = () => {
                     </div>
                     {activeTab === 'STREAM' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
                 </button>
-                <div className="w-px h-4 bg-gray-100"></div>
+                <div className="w-px h-3 bg-gray-100"></div>
                 <button
                     onClick={() => setActiveTab('DATA')}
-                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'DATA' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-wider relative transition-colors ${activeTab === 'DATA' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <Users size={14} className={activeTab === 'DATA' ? "text-blue-600" : "text-gray-400"} />
@@ -224,13 +213,13 @@ const StudentTimeStream: React.FC = () => {
             {activeTab === 'STREAM' ? (
                 <>
                     {/* Header & Filter Bar */}
-                    <div className="p-3 border-b border-gray-100 bg-white space-y-3 flex-shrink-0 z-10">
+                    <div className="p-2 border-b border-gray-100 bg-white space-y-2 flex-shrink-0 z-10">
                         {/* Filter Controls */}
                         <div className="flex gap-2 text-xs">
                             {/* Event Type Filter */}
                             <div className="relative flex-1 min-w-[100px]">
                                 <select
-                                    className="w-full pl-7 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
+                                    className="w-full pl-6 pr-2 py-1 bg-gray-50 border border-gray-200 rounded-md appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
                                     value={filterType}
                                     onChange={(e) => setFilterType(e.target.value as EventType | 'ALL')}
                                 >
@@ -245,13 +234,13 @@ const StudentTimeStream: React.FC = () => {
                                     <option value="LIVE_ENTER">进入直播</option>
                                     <option value="LIVE_EXIT">退出直播</option>
                                 </select>
-                                <Filter size={12} className="absolute left-2 top-1.5 text-gray-400 pointer-events-none" />
+                                <Filter size={10} className="absolute left-2 top-1.5 text-gray-400 pointer-events-none" />
                             </div>
 
                             {/* Team Filter */}
                             <div className="relative w-24">
                                 <select
-                                    className="w-full pl-2 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
+                                    className="w-full pl-2 pr-2 py-1 bg-gray-50 border border-gray-200 rounded-md appearance-none outline-none focus:border-blue-500 font-medium text-gray-700"
                                     value={filterTeam}
                                     onChange={(e) => setFilterTeam(e.target.value)}
                                 >
@@ -266,11 +255,11 @@ const StudentTimeStream: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder="搜索姓名或学号..."
-                                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500 transition-colors"
+                                className="w-full pl-7 pr-3 py-1 bg-gray-50 border border-gray-200 rounded-md text-xs outline-none focus:border-blue-500 transition-colors"
                                 value={filterStudentId}
                                 onChange={(e) => setFilterStudentId(e.target.value)}
                             />
-                            <Search size={12} className="absolute left-2.5 top-2 text-gray-400" />
+                            <Search size={10} className="absolute left-2.5 top-1.5 text-gray-400" />
                         </div>
                     </div>
 

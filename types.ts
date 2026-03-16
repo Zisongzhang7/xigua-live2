@@ -44,21 +44,21 @@ export interface InteractionItem {
 }
 
 export interface ObsConfig {
-    activeSceneName: string;
-    programSceneName: string;
-    connectionConfig: {
-        ip: string;
-        port: string;
-        password?: string;
-    };
+  activeSceneName: string;
+  programSceneName: string;
+  connectionConfig: {
+    ip: string;
+    port: string;
+    password?: string;
+  };
 }
 
 export interface MediaConfig {
-    audioSource: string;
-    videoSource: string;
-    isMicMuted: boolean;
-    isCameraOff: boolean;
-    cutInMode: 'NONE' | 'FULLSCREEN' | 'PIP';
+  audioSource: string;
+  videoSource: string;
+  isMicMuted: boolean;
+  isCameraOff: boolean;
+  cutInMode: 'NONE' | 'FULLSCREEN' | 'PIP';
 }
 
 export interface LiveSession {
@@ -73,6 +73,11 @@ export interface LiveSession {
   linkedLessonName?: string; // For Course Live (Display)
   visibleAudience?: string[]; // For Normal Live (List of strings for simplicity or IDs)
   audienceMode?: 'CLASS' | 'COURSE' | 'USER_TYPE' | 'ID'; // Store the mode
+
+  // Late Configuration
+  latePolicy?: 'unlimited' | 'block' | 'record';
+  lateTime?: number;
+  lateBlockMessage?: string;
 
   // Per-session configuration
   configuredInteractions?: InteractionItem[];

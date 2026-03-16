@@ -184,6 +184,20 @@ const LiveSessionList: React.FC<LiveSessionListProps> = ({
                                                     关联: {session.linkedLessonName}
                                                 </span>
                                             )}
+                                            {liveType === LiveType.COURSE && (
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded border truncate max-w-full ${
+                                                    (session.latePolicy || 'unlimited') === 'unlimited' 
+                                                        ? 'bg-green-50 text-green-600 border-green-100' 
+                                                        : 'bg-amber-50 text-amber-600 border-amber-100'
+                                                }`}>
+                                                    {(session.latePolicy || 'unlimited') === 'unlimited' 
+                                                        ? '迟到无限制' 
+                                                        : session.latePolicy === 'block' 
+                                                            ? `迟到${session.lateTime || 10}分拦截` 
+                                                            : `迟到${session.lateTime || 10}分进录播`
+                                                    }
+                                                </span>
+                                            )}
                                             {liveType === LiveType.ORDINARY && session.visibleAudience && session.visibleAudience.length > 0 && (
                                                  <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 truncate max-w-full">
                                                     可见: {session.visibleAudience.slice(0, 2).join(', ')}{session.visibleAudience.length > 2 ? `...等${session.visibleAudience.length}个` : ''}
