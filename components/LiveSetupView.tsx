@@ -55,11 +55,11 @@ import {
   Settings
 } from 'lucide-react';
 import { LiveStream, LiveType, InteractionCategory, InteractiveResource, InteractionItem, LiveSession, LiveHistoryItem, PlaybackMethod } from '../types';
-import { HistoryCard, HistoryListModal, PlaybackConfigModal } from './LiveHistoryComponents';
+import { PlaybackConfigModal } from './LiveHistoryComponents';
+import { UnifiedSessionList, UnifiedSessionItem } from './UnifiedSessionList';
 import { COMMON_LABELS } from '../App';
 import LiveSessionModal from './LiveSessionModal';
 import CreateLiveModal from './CreateLiveModal';
-import LiveSessionList from './LiveSessionList';
 import StudentTimeStream from './StudentTimeStream';
 import { QuizCard, QuizStatus } from './QuizCard';
 import { VoteCard, VoteStatus } from './VoteCard';
@@ -294,7 +294,6 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   })));
 
   const [playbackModalConfig, setPlaybackModalConfig] = useState<{ isOpen: boolean; item: LiveHistoryItem | null }>({ isOpen: false, item: null });
-  const [isHistoryListModalOpen, setIsHistoryListModalOpen] = useState(false);
 
   const handleTogglePlayback = (item: LiveHistoryItem, enable: boolean) => {
     setHistoryList(prev => prev.map(h =>
@@ -316,6 +315,12 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
 
   // Sort history by start time descending (latest first)
   const sortedHistory = [...historyList].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+  const combinedSessions = useMemo<UnifiedSessionItem[]>(() => {
+    const upcoming = (stream.sessions || []).map(s => ({ ...s, _type: 'upcoming' as const }));
+    const history = historyList.map(h => ({ ...h, _type: 'history' as const }));
+    return [...upcoming, ...history].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  }, [stream.sessions, historyList]);
 
 
   // Sync interactionsList changes to stream state and persist
@@ -979,9 +984,6 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
     return { valid: true, msg: '' };
   }, [stream.type, selectedSessionId, selectedHistoryId, stream.sessions]);
 
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-
-  // Session Modal State
   const [sessionModalConfig, setSessionModalConfig] = useState<{ isOpen: boolean; isEditing: boolean; data?: Partial<LiveSession> }>({ isOpen: false, isEditing: false });
 
   const handleOpenAddSession = () => {
@@ -1153,87 +1155,39 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                 </div>
               ) : (
                 <>
-                  {/* Live Session List Container (Nav Style) */}
+                  {/* Unified Session List Container */}
                   <div className="flex flex-col flex-1 overflow-hidden">
-                    {/* Navigation Tabs Header */}
+                    {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-white">
-                      <div className="flex p-1 bg-gray-100 rounded-lg w-full">
-                        <button
-                          onClick={() => {
-                            setActiveTab('upcoming');
-                            setSelectedHistoryId(null);
-                          }}
-                          className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                          未播场次 ({stream.sessions?.length || 0})
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveTab('history');
-                            setSelectedSessionId(null);
-                          }}
-                          className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                          开播历史 ({historyList.length})
-                        </button>
-                      </div>
+                      <h3 className="text-sm font-bold text-gray-800">所有场次 ({combinedSessions.length})</h3>
+                      <button
+                        onClick={handleOpenAddSession}
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-1 text-xs font-bold"
+                      >
+                        <Plus size={14} /> 新增场次
+                      </button>
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                      {activeTab === 'upcoming' ? (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 p-3">
-                          <button
-                            onClick={handleOpenAddSession}
-                            className="w-full py-3 rounded-xl border border-dashed border-gray-300 text-gray-500 font-bold text-xs hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all flex items-center justify-center gap-1 group shrink-0"
-                          >
-                            <span className="w-5 h-5 rounded-full bg-gray-200 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                              <Plus size={12} className="text-gray-500 group-hover:text-blue-600" />
-                            </span>
-                            新增场次
-                          </button>
-
-                          <LiveSessionList
-                            sessions={stream.sessions || []}
-                            liveType={stream.type}
-                            onDeleteSession={confirmDeleteSession}
-                            onUpdateSession={handleUpdateSession}
-                            selectedSessionId={selectedSessionId}
-                            onSelectSession={(id) => {
-                              setSelectedSessionId(id);
-                              setSelectedHistoryId(null);
-                            }}
-                            onEditSession={handleOpenEditSession}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-3">
-                          {sortedHistory.slice(0, 10).map(item => (
-                            <HistoryCard
-                              key={item.id}
-                              item={item}
-                              liveType={stream.type}
-                              onTogglePlayback={handleTogglePlayback}
-                              onConfigurePlayback={handleConfigurePlayback}
-                              isSelected={selectedHistoryId === item.id}
-                              onSelect={(item) => setSelectedHistoryId(item.id)}
-                            />
-                          ))}
-                          {sortedHistory.length > 10 && (
-                            <button
-                              onClick={() => setIsHistoryListModalOpen(true)}
-                              className="w-full py-3 text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-blue-600 transition-all flex items-center justify-center gap-1 shadow-sm"
-                            >
-                              查看更多 ({sortedHistory.length - 10} 条更多记录) <ChevronRight size={14} />
-                            </button>
-                          )}
-                          {sortedHistory.length === 0 && (
-                            <div className="text-center py-12 text-gray-400 text-xs italic bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                              暂无历史记录
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <div className="flex-1 overflow-hidden flex flex-col p-3">
+                      <UnifiedSessionList
+                        items={combinedSessions}
+                        liveType={stream.type}
+                        selectedSessionId={selectedSessionId}
+                        selectedHistoryId={selectedHistoryId}
+                        onSelectSession={(id) => {
+                          setSelectedSessionId(id);
+                          setSelectedHistoryId(null);
+                        }}
+                        onSelectHistory={(id) => {
+                          setSelectedHistoryId(id);
+                          setSelectedSessionId(null);
+                        }}
+                        onDeleteSession={confirmDeleteSession}
+                        onEditSession={handleOpenEditSession}
+                        onTogglePlayback={handleTogglePlayback}
+                        onConfigurePlayback={handleConfigurePlayback}
+                      />
                     </div>
                   </div>
                 </>
@@ -1253,7 +1207,32 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                         <BarChart2 size={16} className="text-blue-600" />
                         数据看板 - {historyList.find(h => h.id === selectedHistoryId)?.name || '历史场次'}
                       </h3>
-                      <p className="text-[10px] text-gray-400 mt-1">查看历史场次的互动数据与动态流回溯</p>
+                      <div className="flex flex-col gap-1.5 mt-3 text-[11px] text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={12} className="text-gray-400" />
+                          <span>
+                            计划开播：{new Date(historyList.find(h => h.id === selectedHistoryId)?.startTime || Date.now()).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Play size={12} className="text-gray-400" />
+                          <span>
+                            实际开播：{new Date(historyList.find(h => h.id === selectedHistoryId)?.startTime || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })} - {historyList.find(h => h.id === selectedHistoryId)?.endTime ? new Date(historyList.find(h => h.id === selectedHistoryId)!.endTime!).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '未结束'}
+                            <span className="ml-1 text-gray-400">
+                              (时长: {
+                                (() => {
+                                  const h = historyList.find(h => h.id === selectedHistoryId);
+                                  if (!h || !h.endTime) return '未知';
+                                  const start = new Date(h.startTime).getTime();
+                                  const end = new Date(h.endTime).getTime();
+                                  const diffMins = Math.round((end - start) / 60000);
+                                  return `${diffMins}分钟`;
+                                })()
+                              })
+                            </span>
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleDownloadHistoryData(selectedHistoryId)}
@@ -1895,14 +1874,6 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
         isEditing={sessionModalConfig.isEditing}
       />
 
-      <HistoryListModal
-        isOpen={isHistoryListModalOpen}
-        onClose={() => setIsHistoryListModalOpen(false)}
-        history={sortedHistory}
-        liveType={stream.type}
-        onTogglePlayback={handleTogglePlayback}
-        onConfigurePlayback={handleConfigurePlayback}
-      />
 
       <PlaybackConfigModal
         isOpen={playbackModalConfig.isOpen}
