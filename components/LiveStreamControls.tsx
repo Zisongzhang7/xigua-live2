@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Layout, ChevronDown, ChevronUp } from 'lucide-react';
+import { Layout, ChevronDown, ChevronUp, UserX } from 'lucide-react';
+import type { MutedUser } from './StudentTimeStream';
 
 // Types for OBS Scene Data
 interface ObsTransform {
@@ -39,10 +40,17 @@ interface ObsScene {
 interface ObsControlPanelProps {
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
+    mutedUsers?: MutedUser[];
+    onUnmuteUser?: (studentId: string) => void;
 }
 
-export const ObsControlPanel: React.FC<ObsControlPanelProps> = ({ isCollapsed = false, onToggleCollapse }) => {
-    const [activeTab, setActiveTab] = useState<'OBS' | 'OTHER'>('OBS');
+export const ObsControlPanel: React.FC<ObsControlPanelProps> = ({
+    isCollapsed = false,
+    onToggleCollapse,
+    mutedUsers = [],
+    onUnmuteUser
+}) => {
+    const [activeTab, setActiveTab] = useState<'OBS' | 'OTHER' | 'MUTED'>('OBS');
     const [activeSceneName, setActiveSceneName] = useState<string>('场景');
     const [programSceneName, setProgramSceneName] = useState<string>('场景'); // The currently live scene
 
@@ -160,6 +168,20 @@ export const ObsControlPanel: React.FC<ObsControlPanelProps> = ({ isCollapsed = 
                         其他设置
                         {activeTab === 'OTHER' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('MUTED')}
+                        className={`py-3 text-xs font-black tracking-widest relative flex items-center gap-1 ${activeTab === 'MUTED' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <UserX size={14} className="shrink-0" />
+                        禁言用户
+                        {mutedUsers.length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                                {mutedUsers.length}
+                            </span>
+                        )}
+                        {activeTab === 'MUTED' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
+                    </button>
                 </div>
                 {onToggleCollapse && (
                     <button
@@ -174,7 +196,53 @@ export const ObsControlPanel: React.FC<ObsControlPanelProps> = ({ isCollapsed = 
 
             {!isCollapsed && (
                 <div className="flex-1 overflow-hidden">
-                {activeTab === 'OBS' ? (
+                {activeTab === 'MUTED' ? (
+                    <div className="h-full flex flex-col min-h-0 p-3">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 shrink-0">
+                            本场已禁言 {mutedUsers.length} 人
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 min-h-0">
+                            {mutedUsers.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-gray-400 text-xs font-bold">
+                                    <UserX size={32} className="mb-2 opacity-30" />
+                                    暂无禁言用户
+                                </div>
+                            ) : (
+                                mutedUsers.map((u) => (
+                                    <div
+                                        key={u.studentId}
+                                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white hover:border-red-100 hover:shadow-sm transition-all"
+                                    >
+                                        <img
+                                            src={u.avatar}
+                                            alt=""
+                                            className="w-10 h-10 rounded-full bg-gray-100 border border-gray-100 shrink-0"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-xs font-bold text-gray-900 truncate">{u.studentName}</span>
+                                                <span className="text-[9px] font-mono text-gray-400 bg-gray-50 px-1 rounded shrink-0">
+                                                    {u.studentId}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 mt-0.5 truncate">{u.teamName}</div>
+                                            <div className="text-[9px] text-gray-400 mt-1 font-mono">
+                                                {new Date(u.mutedAt).toLocaleString('zh-CN', { hour12: false })}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => onUnmuteUser?.(u.studentId)}
+                                            className="shrink-0 text-[10px] font-black text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            取消禁言
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ) : activeTab === 'OBS' ? (
                     isConnected ? (
                         <div className="h-full flex flex-col p-3">
                             {/* Status Bar */}

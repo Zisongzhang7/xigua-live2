@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   ChevronLeft,
@@ -60,7 +60,7 @@ import { UnifiedSessionList, UnifiedSessionItem } from './UnifiedSessionList';
 import { COMMON_LABELS } from '../App';
 import LiveSessionModal from './LiveSessionModal';
 import CreateLiveModal from './CreateLiveModal';
-import StudentTimeStream from './StudentTimeStream';
+import StudentTimeStream, { MutedUser } from './StudentTimeStream';
 import { QuizCard, QuizStatus } from './QuizCard';
 import { VoteCard, VoteStatus } from './VoteCard';
 import { DebateCard, DebateStatus } from './DebateCard';
@@ -168,6 +168,24 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
   // Viewport Mode: SETUP | LIVE
   const [isLiveMode, setIsLiveMode] = useState(false);
 
+  /** 弹幕禁言：动态流与 OBS「禁言用户」面板共用 */
+  const [mutedUsersMap, setMutedUsersMap] = useState<Record<string, MutedUser>>({});
+  const handleMuteUser = useCallback((u: Pick<MutedUser, 'studentId' | 'studentName' | 'avatar' | 'teamName'>) => {
+    setMutedUsersMap(prev => ({
+      ...prev,
+      [u.studentId]: { ...u, mutedAt: Date.now() }
+    }));
+  }, []);
+  const handleUnmuteUser = useCallback((studentId: string) => {
+    setMutedUsersMap(prev => {
+      const next = { ...prev };
+      delete next[studentId];
+      return next;
+    });
+  }, []);
+  const mutedUsersList = useMemo((): MutedUser[] => {
+    return (Object.values(mutedUsersMap) as MutedUser[]).sort((a, b) => b.mutedAt - a.mutedAt);
+  }, [mutedUsersMap]);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
@@ -1151,7 +1169,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
               {/* Basic Info / Student Stream */}
               {isLiveMode ? (
                 <div className="h-full overflow-y-auto custom-scrollbar p-4">
-                  <StudentTimeStream />
+                  <StudentTimeStream
+                    mutedUsers={mutedUsersMap}
+                    onMuteUser={handleMuteUser}
+                  />
                 </div>
               ) : (
                 <>
@@ -1243,7 +1264,10 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                     </button>
                   </div>
                   <div className="flex-1 overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-white">
-                    <StudentTimeStream />
+                    <StudentTimeStream
+                      mutedUsers={mutedUsersMap}
+                      onMuteUser={handleMuteUser}
+                    />
                   </div>
                 </div>
               ) : (
@@ -1535,6 +1559,8 @@ const LiveSetupView: React.FC<LiveSetupViewProps> = ({ stream: initialStream, re
                           key={`obs-${selectedSessionId || 'live'}`}
                           isCollapsed={isObsCollapsed}
                           onToggleCollapse={() => setIsObsCollapsed(!isObsCollapsed)}
+                          mutedUsers={mutedUsersList}
+                          onUnmuteUser={handleUnmuteUser}
                         />
                       </>
                     ) : (

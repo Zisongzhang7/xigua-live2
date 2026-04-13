@@ -19,6 +19,21 @@ import {
 } from 'lucide-react';
 import StudentDataList from './StudentDataList';
 
+/** 禁言用户（与动态流 / OBS 面板共享） */
+export interface MutedUser {
+    studentId: string;
+    studentName: string;
+    avatar: string;
+    teamName: string;
+    mutedAt: number;
+}
+
+export interface StudentTimeStreamProps {
+    /** studentId -> 禁言信息；未传入 onMuteUser 则动态流不展示禁言操作 */
+    mutedUsers?: Record<string, MutedUser>;
+    onMuteUser?: (user: Pick<MutedUser, 'studentId' | 'studentName' | 'avatar' | 'teamName'>) => void;
+}
+
 // Enhanced Event Types based on User Mind Map
 type EventType =
     | 'ANSWER_SELECT'
@@ -98,7 +113,10 @@ const generateMockEvent = (): StudentEvent => {
 
 const INITIAL_EVENTS: StudentEvent[] = Array.from({ length: 10 }).map(() => generateMockEvent());
 
-const StudentTimeStream: React.FC = () => {
+const StudentTimeStream: React.FC<StudentTimeStreamProps> = ({
+    mutedUsers = {},
+    onMuteUser
+}) => {
     const [events, setEvents] = useState<StudentEvent[]>(INITIAL_EVENTS);
     const [activeTab, setActiveTab] = useState<'STREAM' | 'DATA'>('STREAM');
 
@@ -296,14 +314,40 @@ const StudentTimeStream: React.FC = () => {
                                             <span className="text-[10px] font-mono text-gray-400 shrink-0">{event.time}</span>
                                         </div>
 
-                                        <div className="mt-1.5 flex items-start gap-2">
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getEventTypeColor(event.type)}`}>
-                                                {getEventDescription(event.type)}
-                                            </span>
-                                            {event.content && (
-                                                <p className="text-xs text-gray-700 leading-snug break-all font-medium">
-                                                    {event.content}
-                                                </p>
+                                        <div className="mt-1.5 flex flex-col gap-1.5">
+                                            <div className="flex items-start gap-2 min-w-0">
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getEventTypeColor(event.type)}`}>
+                                                    {getEventDescription(event.type)}
+                                                </span>
+                                                {event.content && (
+                                                    <p className="text-xs text-gray-700 leading-snug break-all font-medium flex-1 min-w-0">
+                                                        {event.content}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {event.type === 'DANMAKU' && onMuteUser && (
+                                                <div className="flex items-center justify-end gap-2 flex-wrap">
+                                                    {mutedUsers[event.studentId] ? (
+                                                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md">
+                                                            已禁言
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                onMuteUser({
+                                                                    studentId: event.studentId,
+                                                                    studentName: event.studentName,
+                                                                    avatar: event.avatar,
+                                                                    teamName: event.teamName
+                                                                })
+                                                            }
+                                                            className="text-[10px] font-black text-red-600 hover:text-white hover:bg-red-500 border border-red-200 bg-white px-2 py-0.5 rounded-md transition-colors shadow-sm"
+                                                        >
+                                                            禁言
+                                                        </button>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
